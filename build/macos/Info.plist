@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Info.plist for the unsigned SecretImport.app bundle (ADR-0010).
+  release.yml copies this file into SecretImport.app/Contents/ and replaces __BUNDLE_VERSION__ with the numeric part of the tag version
+  (prerelease suffixes such as -rc.1 are dropped, because macOS expects dotted integers).
+  CFBundleExecutable must match the published single-file binary name (AssemblyName of SecretImport.Desktop).
+  CFBundleIconFile points at Contents/Resources/AppIcon.icns, which release.yml copies from build/macos/AppIcon.icns
+  when that file exists; without it macOS shows the generic app icon.
+-->
+<plist version="1.0">
+<dict>
+  <key>CFBundleName</key>
+  <string>SecretImport</string>
+  <key>CFBundleDisplayName</key>
+  <string>Secret Import</string>
+  <key>CFBundleIdentifier</key>
+  <string>io.github.secretimport.desktop</string>
+  <key>CFBundleExecutable</key>
+  <string>SecretImport.Desktop</string>
+  <key>CFBundleIconFile</key>
+  <string>AppIcon</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleInfoDictionaryVersion</key>
+  <string>6.0</string>
+  <key>CFBundleVersion</key>
+  <string>__BUNDLE_VERSION__</string>
+  <key>CFBundleShortVersionString</key>
+  <string>__BUNDLE_VERSION__</string>
+  <key>LSMinimumSystemVersion</key>
+  <string>12.0</string>
+  <key>LSApplicationCategoryType</key>
+  <string>public.app-category.developer-tools</string>
+  <key>NSHighResolutionCapable</key>
+  <true/>
+  <key>NSPrincipalClass</key>
+  <string>NSApplication</string>
+</dict>
+</plist>
