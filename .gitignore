@@ -480,3 +480,8 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Obsidian vault: per-user state
+obsidian/.obsidian/workspace*.json
+obsidian/.obsidian/cache
+obsidian/.trash/

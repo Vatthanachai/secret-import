@@ -1,0 +1,77 @@
+# .obsidianignore — paths excluded from Obsidian/vault indexing (gitignore syntax)
+# Notes live in ./obsidian; everything below is source, build output, or tooling noise.
+
+# --- .NET build output ---
+bin/
+obj/
+artifacts/
+publish/
+TestResults/
+*.binlog
+*.nupkg
+*.snupkg
+
+# --- IDE / tooling ---
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.DotSettings.user
+.git/
+.claude/
+graphify-out/
+
+# --- MAUI platform heads & generated files ---
+**/Platforms/Android/Resources/**/*.xml
+**/Platforms/iOS/*.plist
+**/Platforms/MacCatalyst/*.plist
+**/Platforms/Windows/*.appxmanifest
+**/Platforms/Tizen/
+**/Resources/Fonts/
+**/Resources/Images/
+**/Resources/AppIcon/
+**/Resources/Splash/
+**/Resources/Raw/
+*.g.cs
+*.g.i.cs
+*.designer.cs
+*.xaml.cs
+*.csproj
+*.sln
+*.slnx
+
+# --- Android ---
+*.apk
+*.aab
+*.keystore
+*.jks
+**/AndroidManifest.xml
+Resource.designer.cs
+
+# --- iOS / MacCatalyst ---
+*.ipa
+*.app/
+*.dSYM/
+*.mobileprovision
+*.p12
+*.xcarchive/
+xcuserdata/
+
+# --- Windows ---
+*.msix
+*.msixbundle
+*.appx
+*.pfx
+AppPackages/
+
+# --- Secrets / local config ---
+.env
+.env.*
+appsettings.*.local.json
+secrets.json
+
+# --- Vault internals ---
+obsidian/.obsidian/workspace*.json
+obsidian/.obsidian/cache
+obsidian/.trash/
