@@ -19,57 +19,47 @@ TestResults/
 *.suo
 *.DotSettings.user
 .git/
+.github/
 .claude/
 graphify-out/
 
-# --- MAUI platform heads & generated files ---
-**/Platforms/Android/Resources/**/*.xml
-**/Platforms/iOS/*.plist
-**/Platforms/MacCatalyst/*.plist
-**/Platforms/Windows/*.appxmanifest
-**/Platforms/Tizen/
-**/Resources/Fonts/
-**/Resources/Images/
-**/Resources/AppIcon/
-**/Resources/Splash/
-**/Resources/Raw/
-*.g.cs
-*.g.i.cs
-*.designer.cs
-*.xaml.cs
+# --- Source & project files (Core / CLI / Avalonia) ---
+src/
+tests/
+*.cs
+*.axaml
 *.csproj
 *.sln
 *.slnx
+Directory.Build.props
+Directory.Build.targets
+Directory.Packages.props
+global.json
+*.g.cs
+*.g.i.cs
+**/Assets/
 
-# --- Android ---
-*.apk
-*.aab
-*.keystore
-*.jks
-**/AndroidManifest.xml
-Resource.designer.cs
-
-# --- iOS / MacCatalyst ---
-*.ipa
-*.app/
-*.dSYM/
-*.mobileprovision
-*.p12
-*.xcarchive/
-xcuserdata/
-
-# --- Windows ---
+# --- Desktop packaging (Windows / macOS / Linux) ---
 *.msix
-*.msixbundle
-*.appx
+*.exe
 *.pfx
-AppPackages/
+*.app/
+*.dmg
+*.pkg
+*.dSYM/
+*.p12
+*.AppImage
+*.deb
+*.rpm
+*.flatpak
 
 # --- Secrets / local config ---
 .env
 .env.*
 appsettings.*.local.json
 secrets.json
+secrets.json.bak
+*.secrets.json
 
 # --- Vault internals ---
 obsidian/.obsidian/workspace*.json

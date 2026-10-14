@@ -1,7 +1,7 @@
 ---
 status: draft
 created: {{date}}
-platforms: [android, ios, maccatalyst, windows]
+platforms: [windows, macos, linux]
 tags: [feature]
 ---
 # {{title}}

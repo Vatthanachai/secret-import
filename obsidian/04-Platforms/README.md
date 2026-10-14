@@ -1,5 +1,7 @@
 # Platforms
 
-Platform-specific notes: Android, iOS, MacCatalyst, Windows (permissions, entitlements, manifests, signing).
+Platform-specific notes: Windows, macOS, Linux (Avalonia desktop + CLI).
+
+- [[User-Secrets-Paths]] — ตำแหน่ง secrets.json ของแต่ละ OS
 
 Back to [[Home]]
