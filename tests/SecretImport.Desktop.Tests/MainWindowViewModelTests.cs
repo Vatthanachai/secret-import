@@ -41,6 +41,8 @@ public sealed class MainWindowViewModelTests : IDisposable
         Assert.True(_vm.IsIdle);
         Assert.Null(_vm.Analysis);
         Assert.False(_vm.HasWarnings);
+        Assert.Empty(_vm.DiscoveryWarnings);
+        Assert.False(_vm.HasDiscoveryWarnings);
         Assert.False(_vm.HasNoChanges);
         Assert.False(_vm.CanInit);
         Assert.False(_vm.DiscoverCommand.CanExecute(null));
@@ -123,6 +125,54 @@ public sealed class MainWindowViewModelTests : IDisposable
         Assert.Null(_vm.SelectedProject);
         Assert.Equal("Nothing at 'missing'.", _vm.ErrorMessage);
         Assert.False(_vm.IsBusy);
+    }
+
+    [Fact]
+    public async Task Discover_ShowsTheDiscoveryWarnings()
+    {
+        ImportWarning missing = new(ImportWarningKind.MissingProjectFile, "Project 'Gone/Gone.csproj' is listed in All.slnx but does not exist.");
+        _service.Discover = static _ => [TestData.Project("App")];
+        _service.DiscoverWarnings = [missing];
+        _vm.ProjectPath = "All.slnx";
+        List<string?> raised = [];
+        _vm.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+
+        await _vm.DiscoverCommand.ExecuteAsync(null);
+
+        Assert.Equal([missing], _vm.DiscoveryWarnings);
+        Assert.True(_vm.HasDiscoveryWarnings);
+        Assert.Contains(nameof(MainWindowViewModel.HasDiscoveryWarnings), raised);
+        Assert.False(_vm.HasError);
+    }
+
+    [Fact]
+    public async Task Discover_Again_ReplacesTheDiscoveryWarnings()
+    {
+        _service.Discover = static _ => [TestData.Project("App")];
+        _service.DiscoverWarnings = [new ImportWarning(ImportWarningKind.MissingProjectFile, "missing")];
+        _vm.ProjectPath = "All.slnx";
+        await _vm.DiscoverCommand.ExecuteAsync(null);
+
+        _service.DiscoverWarnings = [];
+        await _vm.DiscoverCommand.ExecuteAsync(null);
+
+        Assert.Empty(_vm.DiscoveryWarnings);
+        Assert.False(_vm.HasDiscoveryWarnings);
+    }
+
+    [Fact]
+    public async Task Discover_Failure_ClearsTheDiscoveryWarnings()
+    {
+        _service.Discover = static _ => [TestData.Project("App")];
+        _service.DiscoverWarnings = [new ImportWarning(ImportWarningKind.MissingProjectFile, "missing")];
+        _vm.ProjectPath = "All.slnx";
+        await _vm.DiscoverCommand.ExecuteAsync(null);
+
+        _service.Discover = static _ => throw new ImportException(ImportErrorKind.InvalidInput, "Cannot read solution.");
+        await _vm.DiscoverCommand.ExecuteAsync(null);
+
+        Assert.Empty(_vm.DiscoveryWarnings);
+        Assert.False(_vm.HasDiscoveryWarnings);
     }
 
     [Fact]
@@ -263,6 +313,48 @@ public sealed class MainWindowViewModelTests : IDisposable
         Assert.All(_vm.DiffRows, static r => Assert.False(r.IsRevealed));
         Assert.True(_vm.ApplyCommand.CanExecute(null));
         Assert.False(_vm.HasNoChanges);
+    }
+
+    [Fact]
+    public async Task Analyze_SendsThePathUsedForDiscovery_AsTheScope()
+    {
+        _service.Discover = static _ => [TestData.Project("A"), TestData.Project("B")];
+        _vm.ProjectPath = "  repo/All.slnx  ";
+        await _vm.DiscoverCommand.ExecuteAsync(null);
+        _vm.SelectedProject = _vm.Projects[1];
+        _vm.ContinueToJsonCommand.Execute(null);
+        _vm.JsonPath = _jsonPath;
+
+        // Editing the path box without discovering again must not change the scope of the listed projects.
+        _vm.ProjectPath = "somewhere/else";
+        await _vm.AnalyzeCommand.ExecuteAsync(null);
+
+        ImportRequest request = Assert.Single(_service.AnalyzeCalls);
+        Assert.Equal(_vm.Projects[1].Path, request.ProjectPath);
+        Assert.Equal("repo/All.slnx", request.ScopePath);
+    }
+
+    [Fact]
+    public async Task Reanalyze_KeepsTheScope()
+    {
+        await GoToInitOrConfirmAsync();
+
+        _vm.Mode = ImportMode.Replace;
+        await _vm.ReanalyzeCommand.ExecutionTask!;
+
+        Assert.Equal(["App", "App"], _service.AnalyzeCalls.Select(static r => r.ScopePath));
+    }
+
+    [Fact]
+    public async Task Analyze_ShowsTheAnalysisWarnings_OnTheConfirmStep()
+    {
+        _service.Analyze = static r => TestData.Analysis(r, warnings: [new ImportWarning(ImportWarningKind.SharedSecretsId, "App shares its UserSecretsId with Lib.")]);
+
+        await GoToInitOrConfirmAsync();
+
+        Assert.Equal(WizardStep.Confirm, _vm.Step);
+        Assert.True(_vm.HasWarnings);
+        Assert.Equal(ImportWarningKind.SharedSecretsId, Assert.Single(_vm.Analysis!.Warnings).Kind);
     }
 
     [Fact]
@@ -537,6 +629,9 @@ public sealed class MainWindowViewModelTests : IDisposable
         await _vm.ReanalyzeCommand.ExecutionTask!;
         _vm.Section = "Db";
         await _vm.ApplyCommand.ExecuteAsync(null);
+        _service.DiscoverWarnings = [new ImportWarning(ImportWarningKind.MissingProjectFile, "missing")];
+        _vm.ProjectPath = "App";
+        await _vm.DiscoverCommand.ExecuteAsync(null);
 
         _vm.StartOverCommand.Execute(null);
 
@@ -548,6 +643,8 @@ public sealed class MainWindowViewModelTests : IDisposable
         Assert.Equal(string.Empty, _vm.JsonPath);
         Assert.Equal(string.Empty, _vm.Section);
         Assert.Equal(ImportMode.Overwrite, _vm.Mode);
+        Assert.Empty(_vm.DiscoveryWarnings);
+        Assert.False(_vm.HasDiscoveryWarnings);
         Assert.False(_vm.ReanalyzeCommand.CanExecute(null));
         Assert.Equal(3, _vm.RecentProjects.Count);
     }

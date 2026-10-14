@@ -129,6 +129,32 @@ public sealed class MainWindowHeadlessTests(HeadlessSession headless) : IDisposa
     }
 
     [Fact]
+    public Task ProjectStep_ShowsDiscoveryWarnings()
+    {
+        _service.Discover = static _ => [TestData.Project("App")];
+        _service.DiscoverWarnings = [new ImportWarning(ImportWarningKind.MissingProjectFile, "Gone.csproj is listed in All.slnx but does not exist.")];
+
+        return headless.RunAsync(() =>
+        {
+            using ServiceProvider services = BuildServices();
+            MainWindow window = services.GetRequiredService<MainWindow>();
+            MainWindowViewModel vm = (MainWindowViewModel)window.DataContext!;
+            window.Show();
+            Pump(window);
+            Assert.False(Find<ItemsControl>(window, "DiscoveryWarningsList").IsVisible);
+
+            vm.ProjectPath = "All.slnx";
+            vm.DiscoverCommand.Execute(null);
+            Pump(window);
+
+            ItemsControl warnings = Find<ItemsControl>(window, "DiscoveryWarningsList");
+            Assert.True(warnings.IsVisible);
+            Assert.Contains("Gone.csproj is listed in All.slnx but does not exist.", TextsIn(warnings));
+            window.Close();
+        });
+    }
+
+    [Fact]
     public Task ConfirmAndResult_ShowWarningsCountsAndBackup()
     {
         string json = _temp.File("in.json", "{}");

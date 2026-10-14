@@ -53,6 +53,13 @@
             <Button Grid.Column="2" Content="Folder..." Command="{Binding BrowseProjectFolderCommand}" />
             <Button Grid.Column="3" x:Name="FindProjectsButton" Content="Find projects" Command="{Binding DiscoverCommand}" />
           </Grid>
+          <ItemsControl x:Name="DiscoveryWarningsList" ItemsSource="{Binding DiscoveryWarnings}" IsVisible="{Binding HasDiscoveryWarnings}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="core:ImportWarning">
+                <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Foreground="#C19C00" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
         </StackPanel>
         <Grid DockPanel.Dock="Bottom" ColumnDefinitions="*,Auto" Margin="0,8,0,0">
           <StackPanel Spacing="4">
