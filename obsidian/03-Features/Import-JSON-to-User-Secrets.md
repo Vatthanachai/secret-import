@@ -36,8 +36,7 @@ tags: [feature]
 
 ## Open questions
 - ✅ แก้แล้ว (2026-10-14, [[ADR-0013-scope-and-discovery-warnings]]): คำเตือน id ร่วมตอน Analyze และคำเตือนจาก `DiscoverProjectsAsync`
-- **Desktop ไม่หา solution อัตโนมัติ:** ถ้าผู้ใช้เลือกไฟล์ `.csproj` เดี่ยวจะไม่เห็นคำเตือน id ร่วม ทางเลือกคือย้าย `ScopeResolver` ไปไว้ใน Core แล้วให้ Desktop ใช้ร่วมกับ CLI
-- **`App.sln` คู่กับ `App.slnx` ในโฟลเดอร์เดียวกัน:** ตอนนี้จะไม่ใช้ scope ทางเลือกคือให้เลือก `.slnx` ก่อน (มักเจอแบบนี้ตอนย้ายไปใช้ `.slnx`)
+- ✅ แก้แล้ว (2026-10-14, ADR-0013 Amendment 1): Desktop หา solution อัตโนมัติเหมือน CLI และเลือก `.slnx` ก่อนเมื่อมีคู่ `.sln`/`.slnx`
 - **`CanInit`** เป็น true เฉพาะเมื่อ `NeedsInit` เป็น true และมี SDK ซึ่งเป็นพฤติกรรมที่ใช้อยู่ตอนนี้
 
 ## Decisions
