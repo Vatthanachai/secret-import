@@ -19,6 +19,7 @@ tags: [adr]
    - หา path ด้วย `PathHelper.GetSecretsPathFromSecretsId(id)` จาก package `Microsoft.Extensions.Configuration.UserSecrets` เพื่อให้ได้ path ตรงกับ runtime (ดู [[04-Platforms/User-Secrets-Paths]])
    - เขียนไฟล์ชั่วคราวก่อนแล้วค่อย rename แทนไฟล์เดิม (atomic) และ copy ไฟล์เดิมเป็น `secrets.json.bak` ก่อนทุกครั้ง
    - ตอนอ่าน ถ้าไฟล์เดิมเป็นแบบซ้อนกัน (มีคนแก้มือ) ให้ flatten ก่อน ตอนเขียนกลับใช้ key แบนเสมอ ซึ่งเป็นรูปแบบที่ CLI ทางการใช้
+   - permission ของไฟล์บน Unix ดูที่ [[ADR-0009-unix-file-permissions]]
 4. **ถ้าไม่มี SDK**: ยัง import ได้ถ้าอ่าน XML แล้วเจอ id แต่ปิดการ init และขึ้นคำเตือนว่าอาจตรวจพลาดกรณีที่มี `Condition`
 
 ## Consequences

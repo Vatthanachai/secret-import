@@ -7,6 +7,10 @@ Architecture decision records. Create new ones from the ADR template, named `ADR
 - [[ADR-0003-import-merge-modes]] — overwrite / skip / replace, diff, backup
 - [[ADR-0004-json-input-format]] — flatten, `--section`, JSONC, key ซ้ำ
 - [[ADR-0005-init-and-confirm-flow]] — ถามก่อน init, confirm ก่อน import
-- [[ADR-0006-project-selection]] — csproj / โฟลเดอร์ / solution, ทีละโปรเจค
+- [[ADR-0006-project-selection]] — csproj/fsproj/vbproj, โฟลเดอร์, solution, ทีละโปรเจค
+- [[ADR-0007-tech-stack]] — net10.0, Avalonia 12.1, CommunityToolkit.Mvvm, System.CommandLine + Spectre
+- [[ADR-0008-cli-contract]] — options, `--file -`, exit codes
+- [[ADR-0009-unix-file-permissions]] — ไฟล์ใหม่ 600 / ไฟล์เดิมใช้ permission เดิม
+- [[ADR-0010-distribution]] — GitHub Releases เท่านั้น, self-contained 6 RID, `.nupkg`
 
 Back to [[Home]]

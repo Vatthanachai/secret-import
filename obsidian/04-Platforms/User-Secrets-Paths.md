@@ -6,7 +6,7 @@ updated: 2026-10-14
 
 ให้ใช้ `PathHelper.GetSecretsPathFromSecretsId(id)` จาก `Microsoft.Extensions.Configuration.UserSecrets` เสมอ ไม่ต้องคำนวณ path เอง
 
-ลำดับการหา root ของ `PathHelper` (as of .NET 8–10, TBC ให้ตรวจกับ source อีกครั้งตอน Phase 3):
+ลำดับการหา root ของ `PathHelper` (as of .NET 8–10, inferred — ให้ตรวจกับ source ของ `PathHelper` อีกครั้งตอน Phase 3):
 1. `APPDATA` → `%APPDATA%\Microsoft\UserSecrets\<id>\secrets.json` (Windows)
 2. `HOME` → `~/.microsoft/usersecrets/<id>/secrets.json` (macOS / Linux)
 3. `Environment.SpecialFolder.ApplicationData` / `UserProfile`
@@ -16,5 +16,5 @@ updated: 2026-10-14
 
 ## ข้อควรระวัง
 - Linux: ชื่อไฟล์และโฟลเดอร์แยกตัวพิมพ์เล็ก/ใหญ่ ใช้ path จาก `PathHelper` ตรงๆ เท่านั้น
-- ไฟล์ secrets **ไม่ได้เข้ารหัส** ควรตั้ง permission เป็น `600` บน Unix ตอนสร้างไฟล์ใหม่ (TBC)
+- ไฟล์ secrets **ไม่ได้เข้ารหัส** ดูการจัดการ permission บน Unix ที่ [[ADR-0009-unix-file-permissions]]
 - `dotnet msbuild -getProperty` ต้องใช้ SDK 8 ขึ้นไป

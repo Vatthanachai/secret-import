@@ -29,17 +29,20 @@ tags: [feature]
 - [ ] ค่า secret ไม่แสดงใน log หรือ output จนกว่าผู้ใช้จะขอดู
 - [ ] ทำงานได้บน Windows, macOS และ Linux (path ตาม [[04-Platforms/User-Secrets-Paths]])
 
-## Open questions (TBC)
-- เวอร์ชัน .NET: เสนอ `net10.0` (LTS)
-- เวอร์ชัน Avalonia, MVVM toolkit และ CLI library
-- วิธีแจกจ่าย GUI: self-contained publish ต่อ OS, ทำ installer หรือไม่
-- รองรับ import แบบ pipe เข้า stdin (`--file -`) หรือไม่
-- ตั้ง permission `600` ให้ `secrets.json` บน Unix หรือไม่
+- [ ] CLI `--file -` อ่านจาก stdin ได้ ถ้าไม่มี `--yes` (และไม่ใช่ `--dry-run`) → exit `2`
+- [ ] exit codes ตาม [[ADR-0008-cli-contract]]
+- [ ] Unix: ไฟล์ใหม่เป็น `600` ไฟล์เดิมใช้ permission เดิม และเตือนถ้า group/other อ่านได้ ([[ADR-0009-unix-file-permissions]])
+- [ ] รองรับ `.csproj`, `.fsproj`, `.vbproj` และ `.sln`, `.slnx`
+
+## Decisions
+ตัดสินใจครบทุกข้อแล้ว (as of 2026-10-14) ดู [[02-Decisions/README|Decisions]] โดยเฉพาะ [[ADR-0007-tech-stack]] และ [[ADR-0010-distribution]]
 
 ## Backlog (หลังเวอร์ชันแรก)
 - import เข้าหลายโปรเจคพร้อมกัน
 - เลือก merge ทีละ key
 - export secrets → JSON
 - เก็บ backup หลายเวอร์ชัน
+- CLI `--json` และ `--exit-code`
+- sign/notarize, installer และ nuget.org
 
 Plan: [[Implementation-Plan]]
