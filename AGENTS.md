@@ -19,6 +19,14 @@ All open questions were resolved on 2026-10-14. The stack is `net10.0` (SDK pinn
 
 After Phase 0 (scaffold), replace this section with the real `dotnet build` / `dotnet test` commands, including how to run a single test (`dotnet test --filter "FullyQualifiedName~<TestName>"`).
 
+## Testing, coverage, and branches (ADR-0011, ADR-0012)
+
+- Every `src/` project has a matching `tests/` project (xUnit v3). Coverage must be at least **90% line and 90% branch** in each test project, enforced by coverlet.msbuild thresholds in `tests/Directory.Build.props`. A build below that fails.
+- Exclusions are limited to generated code, `Program.cs`, `App.axaml.cs`, and view code-behind that only calls `InitializeComponent()`. Never put `[ExcludeFromCodeCoverage]` on logic.
+- Branching uses **git flow** (git-flow-next; `main` = production, `develop` = integration). Branches are created and merged only through `git flow feature|bugfix|release|hotfix start/finish`. Agents work in the worktree they're given and never run `finish`, merge, or switch branches.
+- Nothing merges into `develop` until the QA gate passes: Release build with no warnings, all tests green, the coverage threshold met, and a review against the ADRs. Never touch `main` or start a release unless the user asks.
+- The Core public contracts (`IImportService` and its records) are defined in `obsidian/01-Architecture/Overview.md`. Cli and Desktop code against them with fakes. Only `core-tdd` changes them.
+
 ## Architecture rules that span multiple files
 
 - All logic lives in `SecretImport.Core`. `SecretImport.Cli` and `SecretImport.Desktop` are thin frontends over the same `ImportService` (Analyze → confirm → Apply). Core must not reference Avalonia or any CLI library.
