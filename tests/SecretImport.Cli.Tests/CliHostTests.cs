@@ -38,6 +38,47 @@ public class CliHostTests
     }
 
     [Fact]
+    public async Task AddSecretImportCli_UsesTheRegisteredSolutionScopeResolver()
+    {
+        string dir = Directory.CreateTempSubdirectory("secret-import-host-scope-").FullName;
+        try
+        {
+            string project = Path.Combine(dir, "App.csproj");
+            string json = Path.Combine(dir, "in.json");
+            File.WriteAllText(project, "<Project />");
+            File.WriteAllText(json, "{}");
+            string listed = Path.Combine(dir, "Listed.slnx");
+            FakeImportService service = new();
+            service.Returns(TestData.Initialized());
+            using ServiceProvider provider = new ServiceCollection()
+                .AddSingleton<IImportService>(service)
+                .AddSingleton(new SolutionScopeResolver(d => d == dir ? [listed] : []))
+                .AddSecretImportCli(new StringWriter(), new StringWriter(), new StringReader(""), inputRedirected: true)
+                .BuildServiceProvider(validateScopes: true);
+
+            await provider.GetRequiredService<CliApp>().RunAsync(["--project", project, "--file", json, "--dry-run"], TestContext.Current.CancellationToken);
+
+            Assert.Equal(listed, Assert.Single(service.AnalyzeRequests).ScopePath);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void AddSecretImportCli_WithCore_SharesCoresSolutionScopeResolver()
+    {
+        using ServiceProvider provider = new ServiceCollection()
+            .AddSecretImportCli(new StringWriter(), new StringWriter(), new StringReader(""), inputRedirected: true)
+            .AddSecretImportCore()
+            .BuildServiceProvider(validateScopes: true);
+
+        Assert.NotNull(provider.GetRequiredService<SolutionScopeResolver>());
+        Assert.NotNull(provider.GetRequiredService<CliApp>());
+    }
+
+    [Fact]
     public void AddSecretImportCli_RequiresAnImportService()
     {
         using ServiceProvider provider = new ServiceCollection()

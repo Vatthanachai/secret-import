@@ -1,6 +1,9 @@
 using Avalonia.Platform.Storage;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+
+using SecretImport.Core;
 
 using SecretImport.Desktop.Services;
 using SecretImport.Desktop.ViewModels;
@@ -23,12 +26,14 @@ public static class DesktopServices
         return services.BuildServiceProvider(validateScopes: true);
     }
 
-    /// <summary>Desktop services only. <see cref="SecretImport.Core.IImportService"/> must be registered separately.</summary>
+    /// <summary>Desktop services only. <see cref="IImportService"/> must be registered separately.</summary>
     public static IServiceCollection AddSecretImportDesktop(this IServiceCollection services)
     {
         services.AddSingleton<IRecentProjectsStore>(static _ => new JsonRecentProjectsStore(JsonRecentProjectsStore.DefaultFilePath));
         services.AddSingleton<IFilePickerService>(static sp =>
             new StorageProviderFilePicker(() => MainWindowStorageProvider(sp)));
+        // Core's rule for the shared-id scope (ADR-0013 Amendment 1); TryAdd so AddSecretImportCore and tests share one instance.
+        services.TryAddSingleton(static _ => new SolutionScopeResolver());
         services.AddTransient<MainWindowViewModel>();
         services.AddSingleton(static sp => new MainWindow { DataContext = sp.GetRequiredService<MainWindowViewModel>() });
         return services;

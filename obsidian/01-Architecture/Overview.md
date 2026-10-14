@@ -43,6 +43,11 @@ public sealed record JsonInput(string DisplayName, string Content)
 
 public sealed record ImportRequest(string ProjectPath, JsonInput Json, ImportMode Mode, string? Section, string? ScopePath = null);  // ADR-0013
 public sealed record DiscoveryResult(IReadOnlyList<ProjectInfo> Projects, IReadOnlyList<ImportWarning> Warnings);
+public sealed class SolutionScopeResolver   // ADR-0013 Amendment 1, ใช้ร่วมกันทั้ง CLI และ Desktop
+{
+    public string? Resolve(string projectPath, string? explicitScope);
+    public static bool IsProjectFile(string path);   // ตรวจนามสกุล .csproj/.fsproj/.vbproj (Desktop ใช้ตัดสินว่าค้นหาจากไฟล์โปรเจคหรือไม่)
+}
 
 public sealed record SecretChange(string Key, SecretChangeKind Kind, string? OldValue, string? NewValue);
 public sealed record ImportPlan(IReadOnlyList<SecretChange> Changes, IReadOnlyDictionary<string, string> Result)

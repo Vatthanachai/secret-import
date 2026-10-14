@@ -32,14 +32,22 @@ Task<DiscoveryResult> DiscoverProjectsAsync(string path, CancellationToken ct = 
 - **CLI**: เพิ่ม option `--scope <path>`
   - ถ้าไม่ระบุและ `--project` เป็นโฟลเดอร์หรือ solution → ใช้ค่านั้นเป็น scope
   - ถ้า `--project` เป็นไฟล์โปรเจค → หา `.sln`/`.slnx` ที่ใกล้ที่สุดในโฟลเดอร์แม่ขึ้นไป ถ้าเจอมากกว่าหนึ่งไฟล์ในโฟลเดอร์เดียวกัน หรือไม่เจอเลย → ไม่ใช้ scope
-  - การหา solution อัตโนมัติอยู่ใน Cli เพราะเป็นนโยบายของ CLI ไม่ใช่ของ Core
+  - ~~การหา solution อัตโนมัติอยู่ใน Cli~~ ย้ายไป Core แล้ว ดู Amendment 1
 
 ## พฤติกรรมเพิ่มเติมที่ตกลงตอน QA (2026-10-14)
 - scope ที่มีอยู่จริงแต่ไม่มีโปรเจค → ไม่ error ถือว่าไม่มีอะไรให้เทียบ แต่ถ้าเป็น solution ที่โปรเจคหายหมด ยังคงมีคำเตือน `MissingProjectFile`
 - `ScopePath` ที่ว่างหรือมีแต่ช่องว่าง → ถือว่าไม่มีอยู่จริง → `InvalidInput`
-- CLI หา solution อัตโนมัติ: หยุดที่โฟลเดอร์แรกที่มี `.sln`/`.slnx` ถ้ามีหลายไฟล์ในโฟลเดอร์นั้น (เช่น `App.sln` คู่กับ `App.slnx`) → ไม่ใช้ scope และโฟลเดอร์ที่อ่านไม่ได้ให้ข้ามไป
+- การหา solution อัตโนมัติ: หยุดที่โฟลเดอร์แรกที่มี `.sln`/`.slnx` และโฟลเดอร์ที่อ่านไม่ได้ให้ข้ามไป (กติกาการเลือกไฟล์ดู Amendment 1)
 - หน้า confirm ของ CLI แสดงแถว `Scope:` และ `Shared with:`
-- Desktop: ถ้าผู้ใช้ค้นหาจากไฟล์โปรเจคเดี่ยว scope ก็คือไฟล์นั้น จึงไม่มีคำเตือน id ร่วม (ต่างจาก CLI ซึ่งหา solution ให้อัตโนมัติ) ดู open question ใน spec
+
+## Amendment 1 (2026-10-14, bugfix `shared-scope-resolver`) — ผู้ใช้อนุมัติแล้ว
+- **ย้ายการหา solution อัตโนมัติไปไว้ใน Core** เป็น public `SolutionScopeResolver` (มี `Resolve(string projectPath, string? explicitScope)`) เพื่อให้ CLI และ Desktop ใช้กติกาเดียวกัน
+  - Cli ลบ `ScopeResolver` ของตัวเองออกแล้วเรียกตัวใน Core แทน
+  - Desktop: ถ้าผู้ใช้ค้นหาจากไฟล์โปรเจคเดี่ยว ให้ใช้ resolver หา solution ที่ใกล้ที่สุดมาเป็น `ScopePath` ถ้าค้นหาจากโฟลเดอร์หรือ solution ให้ใช้ path นั้นเหมือนเดิม
+- **กติกาเลือกไฟล์เมื่อโฟลเดอร์แรกที่เจอมีหลาย solution:**
+  1. มี solution ไฟล์เดียว → ใช้ไฟล์นั้น
+  2. มีหลายไฟล์ แต่ `.slnx` มีแค่ไฟล์เดียว → ใช้ `.slnx` (เช่น `App.sln` คู่กับ `App.slnx` → `App.slnx`)
+  3. มี `.slnx` มากกว่าหนึ่งไฟล์ หรือมีแต่ `.sln` หลายไฟล์ → ไม่ใช้ scope
 
 ## Consequences
 - ต้องแก้ทั้ง Core, Cli, Desktop และ fake ใน test ทั้งหมดพร้อมกันใน bugfix เดียว

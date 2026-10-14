@@ -19,6 +19,7 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<SecretsInitializer>();
         services.TryAddSingleton<JsonFlattener>();
         services.TryAddSingleton<ImportPlanner>();
+        services.TryAddSingleton(static _ => new SolutionScopeResolver());
         services.TryAddSingleton<IImportService, ImportService>();
         return services;
     }

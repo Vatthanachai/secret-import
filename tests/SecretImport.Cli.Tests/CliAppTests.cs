@@ -143,6 +143,62 @@ public sealed class CliAppTests : IDisposable
     }
 
     [Fact]
+    public async Task WithoutScope_AProjectFileNextToASlnAndASlnx_UsesTheSlnx()
+    {
+        string dir = Directory.CreateTempSubdirectory("secret-import-cli-scope-").FullName;
+        try
+        {
+            string project = Path.Combine(dir, "App.csproj");
+            string slnx = Path.Combine(dir, "App.slnx");
+            File.WriteAllText(project, "<Project />");
+            File.WriteAllText(Path.Combine(dir, "App.sln"), "");
+            File.WriteAllText(slnx, "<Solution />");
+            cli.Service.Returns(TestData.Initialized());
+
+            await cli.RunAsync("--project", project, "--file", cli.JsonPath, "--dry-run");
+
+            Assert.Equal(slnx, Assert.Single(cli.Service.AnalyzeRequests).ScopePath);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task WithoutScope_TheGivenResolverPicksTheScope()
+    {
+        string dir = Directory.CreateTempSubdirectory("secret-import-cli-scope-").FullName;
+        try
+        {
+            string project = Path.Combine(dir, "App.csproj");
+            File.WriteAllText(project, "<Project />");
+            string listed = Path.Combine(dir, "Listed.slnx");
+            cli.ScopeResolver = new SolutionScopeResolver(d => d == dir ? [listed] : []);
+            cli.Service.Returns(TestData.Initialized());
+
+            await cli.RunAsync("--project", project, "--file", cli.JsonPath, "--dry-run");
+
+            Assert.Equal(listed, Assert.Single(cli.Service.AnalyzeRequests).ScopePath);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task Scope_WinsOverTheResolversGuess()
+    {
+        cli.ScopeResolver = new SolutionScopeResolver(static _ => throw new InvalidOperationException("must not list"));
+        cli.Service.Returns(TestData.Initialized());
+
+        await cli.RunImportAsync("--scope", "given/All.sln", "--dry-run");
+
+        Assert.Equal("given/All.sln", Assert.Single(cli.Service.AnalyzeRequests).ScopePath);
+    }
+
+    [Fact]
     public async Task WithoutScope_AFolderProject_IsAlsoTheScope()
     {
         string dir = Directory.CreateTempSubdirectory("secret-import-cli-scope-").FullName;

@@ -1,5 +1,7 @@
 using Spectre.Console.Testing;
 
+using SecretImport.Core;
+
 namespace SecretImport.Cli.Tests;
 
 /// <summary>A <see cref="CliApp"/> over two <see cref="TestConsole"/>s (stdout / stderr), a fake stdin and a temp JSON file.</summary>
@@ -24,6 +26,9 @@ internal sealed class CliHarness : IDisposable
 
     public string JsonPath { get; }
 
+    /// <summary>The resolver handed to <see cref="CliApp"/>; null lets it use Core's default over the real file system.</summary>
+    public SolutionScopeResolver? ScopeResolver { get; set; }
+
     public CliHarness Interactive(params string[] answers)
     {
         Out.Interactive();
@@ -37,7 +42,7 @@ internal sealed class CliHarness : IDisposable
 
     public Task<int> RunAsync(params string[] args)
     {
-        return new CliApp(Out, Err, Stdin, Service).RunAsync(args, TestContext.Current.CancellationToken);
+        return new CliApp(Out, Err, Stdin, Service, ScopeResolver).RunAsync(args, TestContext.Current.CancellationToken);
     }
 
     /// <summary>Runs with <c>--project</c> and <c>--file</c> pointing at the temp JSON file, plus <paramref name="extra"/>.</summary>

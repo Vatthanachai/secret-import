@@ -18,6 +18,7 @@ public class DesktopServicesTests
         Assert.Equal(JsonRecentProjectsStore.DefaultFilePath, store.FilePath);
         Assert.IsType<StorageProviderFilePicker>(services.GetRequiredService<IFilePickerService>());
         Assert.Same(services.GetRequiredService<IFilePickerService>(), services.GetRequiredService<IFilePickerService>());
+        Assert.Same(services.GetRequiredService<SolutionScopeResolver>(), services.GetRequiredService<SolutionScopeResolver>());
     }
 
     [Fact]
@@ -39,6 +40,7 @@ public class DesktopServicesTests
         });
 
         Assert.NotNull(services.GetRequiredService<IImportService>());
+        Assert.NotNull(services.GetRequiredService<SolutionScopeResolver>());
         Assert.NotNull(services.GetRequiredService<MainWindowViewModel>());
     }
 
@@ -48,13 +50,17 @@ public class DesktopServicesTests
         FakeImportService service = new();
         FakeRecentProjectsStore recent = new("a.csproj");
 
+        SolutionScopeResolver resolver = new(static _ => []);
+
         using ServiceProvider services = DesktopServices.Build(s =>
         {
             s.AddSingleton<IImportService>(service);
             s.AddSingleton<IRecentProjectsStore>(recent);
+            s.AddSingleton(resolver);
         });
 
         Assert.Same(service, services.GetRequiredService<IImportService>());
+        Assert.Same(resolver, services.GetRequiredService<SolutionScopeResolver>());
         Assert.Same(recent, services.GetRequiredService<IRecentProjectsStore>());
         MainWindowViewModel vm = services.GetRequiredService<MainWindowViewModel>();
         Assert.Equal(["a.csproj"], vm.RecentProjects);

@@ -16,7 +16,9 @@ public sealed class MainWindowViewModelTests : IDisposable
     public MainWindowViewModelTests()
     {
         _jsonPath = _temp.File("secrets.json", """{ "Db": { "Password": "new-secret" } }""");
-        _vm = new MainWindowViewModel(_service, _picker, _recent);
+        // Only list files inside the temp tree, so solutions that happen to sit above the temp folder can't leak into the scope.
+        SolutionScopeResolver resolver = new(dir => IsInside(_temp.Path, dir) ? Directory.EnumerateFiles(dir) : []);
+        _vm = new MainWindowViewModel(_service, _picker, _recent, resolver);
     }
 
     public void Dispose()
@@ -332,6 +334,70 @@ public sealed class MainWindowViewModelTests : IDisposable
         ImportRequest request = Assert.Single(_service.AnalyzeCalls);
         Assert.Equal(_vm.Projects[1].Path, request.ProjectPath);
         Assert.Equal("repo/All.slnx", request.ScopePath);
+    }
+
+    [Fact]
+    public async Task Analyze_AfterPickingAProjectFile_SendsTheNearestSolutionAsTheScope()
+    {
+        _service.Discover = static _ => [TestData.Project("App")];
+        string solution = _temp.File("All.slnx", "<Solution />");
+        _picker.ProjectFile = ProjectFileInTemp();
+
+        await _vm.BrowseProjectFileCommand.ExecuteAsync(null);
+        await AnalyzeTheSelectedProjectAsync();
+
+        Assert.Equal(solution, Assert.Single(_service.AnalyzeCalls).ScopePath);
+    }
+
+    [Fact]
+    public async Task Analyze_AfterTypingAProjectFile_SendsTheNearestSolutionAsTheScope()
+    {
+        _service.Discover = static _ => [TestData.Project("App")];
+        _temp.File("All.sln", "");
+        string slnx = _temp.File("All.slnx", "<Solution />");
+        _vm.ProjectPath = $"  {ProjectFileInTemp()}  ";
+
+        await _vm.DiscoverCommand.ExecuteAsync(null);
+        await AnalyzeTheSelectedProjectAsync();
+
+        Assert.Equal(slnx, Assert.Single(_service.AnalyzeCalls).ScopePath);
+    }
+
+    [Fact]
+    public async Task Analyze_AfterPickingAProjectFile_WithNoSolutionAbove_SendsNoScope()
+    {
+        _service.Discover = static _ => [TestData.Project("App")];
+        _picker.ProjectFile = ProjectFileInTemp();
+
+        await _vm.BrowseProjectFileCommand.ExecuteAsync(null);
+        await AnalyzeTheSelectedProjectAsync();
+
+        Assert.Null(Assert.Single(_service.AnalyzeCalls).ScopePath);
+    }
+
+    [Fact]
+    public async Task Analyze_AfterPickingAFolder_SendsThatFolderAsTheScope()
+    {
+        _service.Discover = static _ => [TestData.Project("App")];
+        _temp.File("All.slnx", "<Solution />");
+        _picker.Folder = "repo/src";
+
+        await _vm.BrowseProjectFolderCommand.ExecuteAsync(null);
+        await AnalyzeTheSelectedProjectAsync();
+
+        Assert.Equal("repo/src", Assert.Single(_service.AnalyzeCalls).ScopePath);
+    }
+
+    [Fact]
+    public async Task Analyze_AfterPickingASolution_SendsThatSolutionAsTheScope()
+    {
+        _service.Discover = static _ => [TestData.Project("App")];
+        _picker.ProjectFile = "repo/All.sln";
+
+        await _vm.BrowseProjectFileCommand.ExecuteAsync(null);
+        await AnalyzeTheSelectedProjectAsync();
+
+        Assert.Equal("repo/All.sln", Assert.Single(_service.AnalyzeCalls).ScopePath);
     }
 
     [Fact]
@@ -685,6 +751,29 @@ public sealed class MainWindowViewModelTests : IDisposable
         _vm.ProjectPath = "App";
         await _vm.DiscoverCommand.ExecuteAsync(null);
         _vm.ContinueToJsonCommand.Execute(null);
+    }
+
+    private static bool IsInside(string root, string dir)
+    {
+        return Path.GetFullPath(dir).StartsWith(root, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>A real <c>src/App/App.csproj</c> under the temp folder, with no solution next to it.</summary>
+    private string ProjectFileInTemp()
+    {
+        string dir = Directory.CreateDirectory(Path.Combine(_temp.Path, "src", "App")).FullName;
+        string project = Path.Combine(dir, "App.csproj");
+        File.WriteAllText(project, "<Project />");
+        return project;
+    }
+
+    /// <summary>After a discovery that found one project: continue to the JSON step and analyze.</summary>
+    private async Task AnalyzeTheSelectedProjectAsync()
+    {
+        Assert.NotNull(_vm.SelectedProject);
+        _vm.ContinueToJsonCommand.Execute(null);
+        _vm.JsonPath = _jsonPath;
+        await _vm.AnalyzeCommand.ExecuteAsync(null);
     }
 
     private async Task GoToInitOrConfirmAsync()
