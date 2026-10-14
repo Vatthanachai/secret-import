@@ -1,1 +1,1 @@
-return await new SecretImport.Cli.CliApp(Spectre.Console.AnsiConsole.Console).RunAsync(args);
+return await SecretImport.Cli.CliHost.CreateDefault().RunAsync(args);
