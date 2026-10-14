@@ -38,7 +38,7 @@ public sealed record ProjectInfo(ProjectRef Project, string? UserSecretsId, Secr
 
 public sealed record JsonInput(string DisplayName, string Content)
 {
-    public static JsonInput FromFile(string path);      // อ่านไฟล์ (UTF-8)
+    public static JsonInput FromFile(string path);      // UTF-8 (ตัด BOM ออก), DisplayName = full path, ไม่มีไฟล์ → InvalidInput, อ่านไม่ได้ → IoFailure
 }
 
 public sealed record ImportRequest(string ProjectPath, JsonInput Json, ImportMode Mode, string? Section);
@@ -59,8 +59,9 @@ public sealed record ImportResult(int Added, int Changed, int Removed, string Se
 
 public sealed class ImportException : Exception
 {
+    public ImportException(ImportErrorKind kind, string message, IReadOnlyList<ProjectRef>? candidates = null, Exception? innerException = null);
     public ImportErrorKind Kind { get; }
-    public IReadOnlyList<ProjectRef> Candidates { get; }  // ใช้ตอน MultipleProjects
+    public IReadOnlyList<ProjectRef> Candidates { get; }  // ใช้ตอน MultipleProjects ถ้าไม่ใช่จะเป็นรายการว่าง
 }
 
 public interface IImportService

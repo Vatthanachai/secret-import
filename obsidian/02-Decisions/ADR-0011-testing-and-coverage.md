@@ -18,7 +18,9 @@ tags: [adr, testing]
 - xUnit v3 (`xunit.v3` 4.0.x) และ `Microsoft.NET.Test.Sdk`
 - `coverlet.msbuild` 10.1.x ใช้เก็บ coverage และบังคับ threshold
 - `dotnet-reportgenerator-globaltool` 5.5.x ติดตั้งเป็น local tool (`.config/dotnet-tools.json`) ใช้สร้างรายงาน HTML
-- `Avalonia.Headless.XUnit` 12.1.x ต้องตรวจตอน Phase 0 ว่าใช้กับ xUnit v3 ได้หรือไม่ ถ้าไม่ได้ให้บันทึกทางเลือกที่ใช้แทนไว้ใน ADR นี้
+- **Headless UI test**: `Avalonia.Headless.XUnit` 12.1.4 ใช้กับ xUnit v3 4.0 ไม่ได้ (build มาสำหรับ xunit.v3 3.2.2 และ test discovery เจอ `MissingMethodException`) จึงใช้ `Avalonia.Headless` ตรงๆ แทน ผ่าน assembly fixture `HeadlessSession` ที่ห่อ `HeadlessUnitTestSession.StartNew(...)` และ test เรียก `RunAsync(...)` fixture ต้อง dispose ผ่าน `DisposeAsync` เท่านั้น เพราะ `Dispose()` แบบ synchronous จะค้างตอน xUnit teardown (ตรวจสอบเมื่อ 2026-10-14)
+- **Test runner**: รันผ่าน VSTest (`IsTestingPlatformApplication=false`) ไม่ใช้ Microsoft.Testing.Platform เพราะ `coverlet.msbuild` ทำงานกับ VSTest target เท่านั้น ถ้าวันหลังย้ายไป MTP ต้องเปลี่ยนไปใช้ coverlet แบบ MTP
+- **ขอบเขตการวัด**: แต่ละโปรเจค test วัดเฉพาะโปรเจคที่ตัวเอง test (`Include=[SecretImport.X]*`)
 
 **เกณฑ์**
 - **line ≥ 90% และ branch ≥ 90%** คิดแยกต่อโปรเจค test (ThresholdStat = total)
