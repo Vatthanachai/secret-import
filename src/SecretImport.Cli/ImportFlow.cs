@@ -8,10 +8,11 @@ namespace SecretImport.Cli;
 /// Drives one import through <see cref="IImportService"/>: Analyze → (init) → confirm → Apply, and maps the outcome to an exit code (ADR-0005, ADR-0008).
 /// Normal output goes to <paramref name="console"/>, errors to <paramref name="errorConsole"/>.
 /// </summary>
-/// <param name="scopeResolver">Picks the shared-id scope when <c>--scope</c> is omitted; defaults to the real file system.</param>
-public sealed class ImportFlow(IAnsiConsole console, IAnsiConsole errorConsole, TextReader stdin, IImportService importService, ScopeResolver? scopeResolver = null)
+/// <param name="scopeResolver">Core's rule for the shared-id scope when <c>--scope</c> is omitted (ADR-0013); defaults to the real file system.</param>
+public sealed class ImportFlow(
+    IAnsiConsole console, IAnsiConsole errorConsole, TextReader stdin, IImportService importService, SolutionScopeResolver? scopeResolver = null)
 {
-    private readonly ScopeResolver scopeResolver = scopeResolver ?? new ScopeResolver();
+    private readonly SolutionScopeResolver scopeResolver = scopeResolver ?? new SolutionScopeResolver();
 
     public const string StdinDisplayName = "stdin";
 

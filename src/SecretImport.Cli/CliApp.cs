@@ -11,7 +11,9 @@ namespace SecretImport.Cli;
 /// Testable entry point of the <c>secret-import</c> tool (ADR-0008). <c>Program.cs</c> only delegates here via <see cref="CliHost"/>.
 /// Normal output goes to <paramref name="console"/> (stdout); errors, including parse errors, go to <paramref name="errorConsole"/> (stderr).
 /// </summary>
-public sealed class CliApp(IAnsiConsole console, IAnsiConsole errorConsole, TextReader stdin, IImportService importService)
+/// <param name="scopeResolver">Picks the shared-id scope when <c>--scope</c> is omitted; defaults to Core's resolver over the real file system.</param>
+public sealed class CliApp(
+    IAnsiConsole console, IAnsiConsole errorConsole, TextReader stdin, IImportService importService, SolutionScopeResolver? scopeResolver = null)
 {
     public const string CommandName = "secret-import";
 
@@ -45,7 +47,7 @@ public sealed class CliApp(IAnsiConsole console, IAnsiConsole errorConsole, Text
     private readonly Option<string?> scopeOption = new("--scope")
     {
         Description = "A folder or .sln/.slnx whose projects are checked for a UserSecretsId shared with --project. "
-            + "Defaults to --project when it is a folder or solution, else to the nearest single .sln/.slnx above the project file.",
+            + "Defaults to --project when it is a folder or solution, else to the nearest .sln/.slnx above the project file (a lone .slnx wins over .sln files next to it).",
         HelpName = "path",
     };
 
@@ -101,6 +103,6 @@ public sealed class CliApp(IAnsiConsole console, IAnsiConsole errorConsole, Text
             parseResult.GetValue(yesOption),
             parseResult.GetValue(initOption),
             parseResult.GetValue(showValuesOption));
-        return new ImportFlow(console, errorConsole, stdin, importService).RunAsync(options, cancellationToken);
+        return new ImportFlow(console, errorConsole, stdin, importService, scopeResolver).RunAsync(options, cancellationToken);
     }
 }

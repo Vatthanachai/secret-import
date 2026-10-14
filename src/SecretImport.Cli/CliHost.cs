@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 using Spectre.Console;
 
@@ -19,15 +20,20 @@ public static class CliHost
             .GetRequiredService<CliApp>();
     }
 
-    /// <summary>Registers <see cref="CliApp"/> over the given streams. <see cref="IImportService"/> must be registered separately.</summary>
+    /// <summary>
+    /// Registers <see cref="CliApp"/> over the given streams. <see cref="IImportService"/> must be registered separately.
+    /// <see cref="SolutionScopeResolver"/> is added with TryAdd, so the one from <c>AddSecretImportCore</c> (or a test's) is shared.
+    /// </summary>
     public static IServiceCollection AddSecretImportCli(
         this IServiceCollection services, TextWriter stdout, TextWriter stderr, TextReader stdin, bool inputRedirected)
     {
+        services.TryAddSingleton(static _ => new SolutionScopeResolver());
         services.AddSingleton(sp => new CliApp(
             CreateConsole(stdout, interactive: !inputRedirected),
             CreateConsole(stderr, interactive: false),
             stdin,
-            sp.GetRequiredService<IImportService>()));
+            sp.GetRequiredService<IImportService>(),
+            sp.GetRequiredService<SolutionScopeResolver>()));
         return services;
     }
 
