@@ -17,13 +17,19 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private readonly IImportService _importService;
     private readonly IFilePickerService _pickers;
     private readonly IRecentProjectsStore _recentProjects;
+    private readonly SolutionScopeResolver _scopeResolver;
     private JsonInput? _json;
 
-    /// <summary>The path the listed projects were discovered from; sent as <see cref="ImportRequest.ScopePath"/> (ADR-0013).</summary>
-    private string? _discoveryPath;
+    /// <summary>
+    /// The <see cref="ImportRequest.ScopePath"/> for the listed projects (ADR-0013 Amendment 1): the folder or solution they were
+    /// discovered from, or, for a single project file, the nearest solution <see cref="SolutionScopeResolver"/> finds (null if none).
+    /// </summary>
+    private string? _scopePath;
 
-    public MainWindowViewModel(IImportService importService, IFilePickerService pickers, IRecentProjectsStore recentProjects)
+    public MainWindowViewModel(
+        IImportService importService, IFilePickerService pickers, IRecentProjectsStore recentProjects, SolutionScopeResolver scopeResolver)
     {
+        _scopeResolver = scopeResolver;
         _importService = importService;
         _pickers = pickers;
         _recentProjects = recentProjects;
@@ -217,7 +223,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         GoTo(WizardStep.Project);
         Result = null;
         _json = null;
-        _discoveryPath = null;
+        _scopePath = null;
         DiscoveryWarnings = [];
         Projects.Clear();
         SelectedProject = null;
@@ -328,10 +334,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         Projects.Clear();
         SelectedProject = null;
         DiscoveryWarnings = [];
-        _discoveryPath = null;
+        _scopePath = null;
         string path = ProjectPath.Trim();
         DiscoveryResult found = await _importService.DiscoverProjectsAsync(path);
-        _discoveryPath = path;
+        _scopePath = SolutionScopeResolver.IsProjectFile(path) ? _scopeResolver.Resolve(path, null) : path;
         DiscoveryWarnings = found.Warnings;
         foreach (ProjectInfo info in found.Projects)
         {
@@ -351,7 +357,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private async Task AnalyzeCurrentAsync()
     {
         string? section = string.IsNullOrWhiteSpace(Section) ? null : Section.Trim();
-        ImportRequest request = new(SelectedProject!.Path, _json!, Mode, section, _discoveryPath);
+        ImportRequest request = new(SelectedProject!.Path, _json!, Mode, section, _scopePath);
         ImportAnalysis analysis = await _importService.AnalyzeAsync(request);
 
         ClearPlan();
