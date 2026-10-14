@@ -19,6 +19,8 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            // IImportService comes from Core: once ImportService exists this becomes
+            // DesktopServices.Build(static s => s.AddSecretImportCore()).
             ServiceProvider services = DesktopServices.Build();
             desktop.MainWindow = services.GetRequiredService<MainWindow>();
             desktop.Exit += (_, _) => services.Dispose();
