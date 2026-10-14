@@ -23,3 +23,9 @@ You own `.github/workflows/`, publish settings, and install docs. Follow `AGENTS
 Keep the readme install section accurate: `dotnet tool install -g SecretImport.Cli --add-source <download-folder>`, plus how to open the unsigned app past Gatekeeper and SmartScreen.
 
 Don't push tags or create releases yourself. Prepare the workflows and tell the user which command to run.
+
+## Branch, worktree, and QA gate (ADR-0011, ADR-0012)
+- You're given a worktree path on a `feature/*` branch created with git flow. Work and commit only there. Never switch branches, merge, rebase onto another feature, or run `git flow ... finish`. QA does that.
+- Use small commits with clear messages, each ending with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
+- Before you report done, run in the worktree: `dotnet build -c Release` (zero warnings) and `dotnet test -c Release -p:CollectCoverage=true`. Line and branch coverage must each be **≥ 90%** in every test project you touched. Don't reach the number with `[ExcludeFromCodeCoverage]` on logic or with assertion-free tests.
+- Your report must include the final commit SHA, the coverage % per test project, every file excluded from coverage and why, and anything you couldn't do.

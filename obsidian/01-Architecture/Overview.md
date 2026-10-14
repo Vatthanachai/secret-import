@@ -15,8 +15,63 @@ src/
   SecretImport.Cli/         net10.0 dotnet tool `secret-import`
   SecretImport.Desktop/     Avalonia app (Windows / macOS / Linux)
 tests/
-  SecretImport.Core.Tests/  xUnit
+  Directory.Build.props     coverage threshold 90% (line + branch)
+  SecretImport.Core.Tests/
+  SecretImport.Cli.Tests/
+  SecretImport.Desktop.Tests/
 ```
+test และ coverage ดูที่ [[ADR-0011-testing-and-coverage]] ส่วนการแบ่งงานและ QA ดูที่ [[ADR-0012-branching-and-qa]]
+
+## Public contracts ของ Core (สร้างใน Phase 0)
+Cli และ Desktop เขียนโค้ดเทียบกับ contract ชุดนี้ ถ้าจะเปลี่ยนต้องผ่าน `core-tdd` และ QA ก่อน
+```csharp
+namespace SecretImport.Core;
+
+public enum ImportMode { Overwrite, Skip, Replace }
+public enum SecretChangeKind { Added, Changed, Unchanged, Removed, Skipped }
+public enum SecretsIdSource { None, MsBuild, XmlFallback }
+public enum ImportWarningKind { NullValueSkipped, SharedSecretsId, XmlFallbackUsed, InsecureFilePermissions, MissingProjectFile }
+public enum ImportErrorKind { InvalidInput, NoProjectFound, MultipleProjects, SdkUnavailable, ConcurrentModification, IoFailure }
+
+public sealed record ProjectRef(string Path, string Name);
+public sealed record ProjectInfo(ProjectRef Project, string? UserSecretsId, SecretsIdSource Source, IReadOnlyList<ProjectRef> SharedWith);
+
+public sealed record JsonInput(string DisplayName, string Content)
+{
+    public static JsonInput FromFile(string path);      // อ่านไฟล์ (UTF-8)
+}
+
+public sealed record ImportRequest(string ProjectPath, JsonInput Json, ImportMode Mode, string? Section);
+
+public sealed record SecretChange(string Key, SecretChangeKind Kind, string? OldValue, string? NewValue);
+public sealed record ImportPlan(IReadOnlyList<SecretChange> Changes, IReadOnlyDictionary<string, string> Result)
+{
+    public bool HasChanges { get; }                      // true ถ้ามี Added/Changed/Removed
+}
+public sealed record ImportWarning(ImportWarningKind Kind, string Message);   // Message ห้ามมีค่า secret
+
+public sealed record ImportAnalysis(
+    ProjectInfo Project, ImportRequest Request, string? SecretsPath,
+    bool NeedsInit, bool CanInit, int ExistingCount, int IncomingCount,
+    ImportPlan Plan, IReadOnlyList<ImportWarning> Warnings, string? ExistingFileHash);
+
+public sealed record ImportResult(int Added, int Changed, int Removed, string SecretsPath, string? BackupPath);
+
+public sealed class ImportException : Exception
+{
+    public ImportErrorKind Kind { get; }
+    public IReadOnlyList<ProjectRef> Candidates { get; }  // ใช้ตอน MultipleProjects
+}
+
+public interface IImportService
+{
+    Task<IReadOnlyList<ProjectInfo>> DiscoverProjectsAsync(string path, CancellationToken ct = default);
+    Task<ImportAnalysis> AnalyzeAsync(ImportRequest request, CancellationToken ct = default);   // ยังไม่ init → NeedsInit = true, Plan เทียบกับค่าว่าง
+    Task InitAsync(ProjectRef project, CancellationToken ct = default);                          // ไม่มี SDK → ImportException(SdkUnavailable)
+    Task<ImportResult> ApplyAsync(ImportAnalysis analysis, CancellationToken ct = default);      // ไฟล์เปลี่ยนไปหลัง Analyze → ConcurrentModification
+}
+```
+การ map ไปเป็น exit code ของ CLI: `InvalidInput`/`NoProjectFound`/`MultipleProjects` → `1` และ `SdkUnavailable`/`ConcurrentModification`/`IoFailure` → `3`
 ทิศทางการอ้างอิง: `Cli` → `Core` ← `Desktop` และ Core ห้ามอ้างอิง UI framework ใดๆ
 library และเวอร์ชันทั้งหมดอยู่ใน [[ADR-0007-tech-stack]]
 

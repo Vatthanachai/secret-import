@@ -7,16 +7,22 @@ tags: [plan]
 
 Spec: [[Import-JSON-to-User-Secrets]] · Architecture: [[01-Architecture/Overview]]
 
-แต่ละ phase จบด้วย build และ test ที่ผ่าน แล้ว commit แยก
+แต่ละ phase ทำบน git flow feature และ worktree ของตัวเอง ต้องผ่าน QA gate ([[ADR-0012-branching-and-qa]]) ก่อน merge เข้า `develop`
+ทุก phase ต้องมี unit test และ coverage line/branch ≥ 90% ([[ADR-0011-testing-and-coverage]])
 
-## Phase 0 — Scaffold
+## Phase 0 — Scaffold + contracts (`core-tdd`, `git flow feature start p0-scaffold`) — ต้องเสร็จก่อน phase อื่น
 - [ ] `global.json`: SDK `10.0.400`, `rollForward: latestFeature`
-- [ ] สร้าง `SecretImport.slnx` และโปรเจค Core, Cli, Desktop, Core.Tests (`net10.0`)
+- [ ] สร้าง `SecretImport.slnx` และโปรเจค Core, Cli, Desktop, Core.Tests, Cli.Tests, Desktop.Tests (`net10.0`)
 - [ ] `Directory.Build.props`: `Nullable` enable, `TreatWarningsAsErrors`, `LangVersion` latest
-- [ ] `Directory.Packages.props`: ปักเวอร์ชันตาม [[ADR-0007-tech-stack]]
-- [ ] Desktop: ใช้ template ของ Avalonia 12.1 + CommunityToolkit.Mvvm + DI
-- [ ] แก้ `CLAUDE.md` ให้มีคำสั่ง build/test จริง
-- ✅ `dotnet build` และ `dotnet test` ผ่าน
+- [ ] `Directory.Packages.props`: ปักเวอร์ชันตาม [[ADR-0007-tech-stack]] และ [[ADR-0011-testing-and-coverage]]
+- [ ] `tests/Directory.Build.props`: xUnit v3, coverlet.msbuild, threshold 90 line + branch และกำหนดสิ่งที่ไม่นับใน coverage
+- [ ] `.config/dotnet-tools.json`: reportgenerator
+- [ ] Desktop: ใช้ template ของ Avalonia 12.1 + CommunityToolkit.Mvvm + DI และตรวจว่า `Avalonia.Headless.XUnit` ใช้กับ xUnit v3 ได้หรือไม่
+- [ ] Core: public contracts ตาม [[01-Architecture/Overview#Public contracts ของ Core (สร้างใน Phase 0)]] (ยังไม่มี implementation ของ `IImportService`) พร้อม test ของ `ImportPlan.HasChanges` และ `JsonInput.FromFile`
+- [ ] แก้ `AGENTS.md` ให้มีคำสั่ง build/test/coverage จริง
+- ✅ `dotnet build -c Release` ไม่มี warning และ `dotnet test -p:CollectCoverage=true` ผ่านเกณฑ์
+
+หลัง Phase 0 merge แล้ว ทำพร้อมกันได้: Phase 1–5 (`core-tdd`), Phase 6 (`cli-builder`), Phase 7 (`avalonia-ui`), Phase 8 (`release-ci`)
 
 ## Phase 1 — JsonFlattener (TDD)
 - [ ] กรณี object ซ้อน, array, number/bool, null (เตือน), string ว่าง
