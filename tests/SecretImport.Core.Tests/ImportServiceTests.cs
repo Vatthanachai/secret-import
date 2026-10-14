@@ -50,6 +50,11 @@ public sealed class ImportServiceTests : IDisposable
     {
         Directory.CreateDirectory(Path.GetDirectoryName(SecretsPath(id))!);
         File.WriteAllText(SecretsPath(id), json);
+        if (!OperatingSystem.IsWindows())
+        {
+            // Like a file written by this tool; umask would otherwise give 644 and trigger the ADR-0009 warning.
+            File.SetUnixFileMode(SecretsPath(id), UnixFileMode.UserRead | UnixFileMode.UserWrite);
+        }
     }
 
     private static ImportRequest Request(string project, string json, ImportMode mode = ImportMode.Overwrite, string? section = null) =>
@@ -108,6 +113,24 @@ public sealed class ImportServiceTests : IDisposable
         Assert.Equal(SecretsStore.ComputeHash(File.ReadAllBytes(SecretsPath("app-id"))), analysis.ExistingFileHash);
         Assert.Equal([SecretChangeKind.Changed, SecretChangeKind.Added], analysis.Plan.Changes.Select(static c => c.Kind));
         Assert.Empty(analysis.Warnings);
+    }
+
+    [Fact]
+    public async Task Analyze_Unix_GroupReadableSecretsFile_IsWarnedAbout()
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "Unix file permissions do not apply on Windows.");
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        string project = AddProject("App/App.csproj", "app-id");
+        WriteSecrets("app-id", """{ "A": "1" }""");
+        File.SetUnixFileMode(SecretsPath("app-id"), UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.GroupRead);
+
+        ImportAnalysis analysis = await _service.AnalyzeAsync(Request(project, """{ "A": "2" }"""), Ct);
+
+        Assert.Equal(ImportWarningKind.InsecureFilePermissions, Assert.Single(analysis.Warnings).Kind);
     }
 
     [Fact]
