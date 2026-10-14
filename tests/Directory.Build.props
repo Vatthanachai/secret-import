@@ -1,0 +1,57 @@
+<Project>
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <!-- xUnit v3 test projects are executables. -->
+    <OutputType>Exe</OutputType>
+    <!-- coverlet.msbuild hooks the VSTest target, so run xUnit v3 through xunit.runner.visualstudio (VSTest) rather than Microsoft.Testing.Platform. -->
+    <IsTestingPlatformApplication>false</IsTestingPlatformApplication>
+    <!-- Project under test: SecretImport.Core.Tests -> SecretImport.Core. -->
+    <ProjectUnderTest>$(MSBuildProjectName.Replace('.Tests', ''))</ProjectUnderTest>
+  </PropertyGroup>
+
+  <!--
+    Coverage gate (ADR-0011): 90% line AND 90% branch, total, per test project.
+    Enforced when running: dotnet test -c Release -p:CollectCoverage=true
+  -->
+  <PropertyGroup>
+    <Threshold>90</Threshold>
+    <ThresholdType>line,branch</ThresholdType>
+    <ThresholdStat>total</ThresholdStat>
+    <CoverletOutputFormat>cobertura</CoverletOutputFormat>
+    <CoverletOutput>$(MSBuildThisFileDirectory)../TestResults/coverage/$(MSBuildProjectName)/</CoverletOutput>
+    <!-- Measure only the project under test, so each test project is gated on its own target. Test assemblies and xUnit are never measured. -->
+    <Include>[$(ProjectUnderTest)]*</Include>
+    <Exclude>[*.Tests]*,[xunit*]*</Exclude>
+    <!-- Compiler / source-generator output. -->
+    <ExcludeByAttribute>GeneratedCodeAttribute,CompilerGeneratedAttribute</ExcludeByAttribute>
+    <!--
+      File exclusions allowed by ADR-0011 (each must be reviewed by QA):
+      - *.g.cs: source-generator output (Avalonia name generator, MVVM toolkit).
+      - Desktop Program.cs: Avalonia AppBuilder bootstrap / Main, needs a real windowing platform.
+      - Desktop App.axaml.cs: Avalonia Application lifecycle glue; DI wiring lives in testable DesktopServices.
+      - Desktop Views/*.axaml.cs: view code-behind containing only InitializeComponent().
+      - Cli Program.cs: a one-line delegate to the testable CliApp entry point.
+    -->
+    <ExcludeByFile>**/*.g.cs;**/obj/**;**/SecretImport.Desktop/Program.cs;**/SecretImport.Desktop/App.axaml.cs;**/SecretImport.Desktop/Views/*.axaml.cs;**/SecretImport.Cli/Program.cs</ExcludeByFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="xunit.runner.visualstudio">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.msbuild">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+</Project>
