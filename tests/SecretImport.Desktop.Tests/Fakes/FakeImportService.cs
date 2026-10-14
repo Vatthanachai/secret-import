@@ -7,6 +7,9 @@ internal sealed class FakeImportService : IImportService
 {
     public Func<string, IReadOnlyList<ProjectInfo>> Discover { get; set; } = static _ => [];
 
+    /// <summary>The <see cref="DiscoveryResult.Warnings"/> returned with every discovery.</summary>
+    public IReadOnlyList<ImportWarning> DiscoverWarnings { get; set; } = [];
+
     public Func<ImportRequest, ImportAnalysis> Analyze { get; set; } = static r => TestData.Analysis(r);
 
     public Action<ProjectRef> Init { get; set; } = static _ => { };
@@ -24,11 +27,11 @@ internal sealed class FakeImportService : IImportService
 
     public List<ImportAnalysis> ApplyCalls { get; } = [];
 
-    public async Task<IReadOnlyList<ProjectInfo>> DiscoverProjectsAsync(string path, CancellationToken ct = default)
+    public async Task<DiscoveryResult> DiscoverProjectsAsync(string path, CancellationToken ct = default)
     {
         await WaitGateAsync();
         DiscoverCalls.Add(path);
-        return Discover(path);
+        return new DiscoveryResult(Discover(path), DiscoverWarnings);
     }
 
     public async Task<ImportAnalysis> AnalyzeAsync(ImportRequest request, CancellationToken ct = default)

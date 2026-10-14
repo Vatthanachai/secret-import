@@ -32,7 +32,7 @@ internal sealed class FakeImportService : IImportService
         return this;
     }
 
-    public Task<IReadOnlyList<ProjectInfo>> DiscoverProjectsAsync(string path, CancellationToken ct = default)
+    public Task<DiscoveryResult> DiscoverProjectsAsync(string path, CancellationToken ct = default)
     {
         throw new NotSupportedException("The CLI never discovers projects; Analyze resolves --project.");
     }

@@ -57,8 +57,17 @@ public sealed class ImportServiceTests : IDisposable
         }
     }
 
-    private static ImportRequest Request(string project, string json, ImportMode mode = ImportMode.Overwrite, string? section = null) =>
-        new(project, new JsonInput("input.json", json), mode, section);
+    private static ImportRequest Request(string project, string json, ImportMode mode = ImportMode.Overwrite, string? section = null, string? scope = null) =>
+        new(project, new JsonInput("input.json", json), mode, section, scope);
+
+    private string AddSolution(string relative, params string[] projectPaths)
+    {
+        string path = Path.Combine(_dir, relative.Replace('/', Path.DirectorySeparatorChar));
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        string entries = string.Concat(projectPaths.Select(static p => $"<Project Path=\"{p}\" />"));
+        File.WriteAllText(path, $"<Solution>{entries}</Solution>");
+        return path;
+    }
 
     // ---- DiscoverProjectsAsync ----
 
@@ -70,7 +79,8 @@ public sealed class ImportServiceTests : IDisposable
         string c = AddProject("C/C.csproj", "own");
         string d = AddProject("D/D.csproj");
 
-        IReadOnlyList<ProjectInfo> projects = await _service.DiscoverProjectsAsync(_dir, Ct);
+        DiscoveryResult result = await _service.DiscoverProjectsAsync(_dir, Ct);
+        IReadOnlyList<ProjectInfo> projects = result.Projects;
 
         Assert.Equal([a, b, c, d], projects.Select(static p => p.Project.Path));
         Assert.Equal("shared", projects[0].UserSecretsId);
@@ -81,6 +91,21 @@ public sealed class ImportServiceTests : IDisposable
         Assert.Null(projects[3].UserSecretsId);
         Assert.Equal(SecretsIdSource.None, projects[3].Source);
         Assert.Empty(projects[3].SharedWith);
+        Assert.Empty(result.Warnings);
+    }
+
+    [Fact]
+    public async Task Discover_SolutionWithAMissingProject_ReturnsTheWarning()
+    {
+        string app = AddProject("App/App.csproj", "app-id");
+        string sln = AddSolution("All.slnx", "App/App.csproj", "Gone/Gone.csproj");
+
+        DiscoveryResult result = await _service.DiscoverProjectsAsync(sln, Ct);
+
+        Assert.Equal(app, Assert.Single(result.Projects).Project.Path);
+        ImportWarning warning = Assert.Single(result.Warnings);
+        Assert.Equal(ImportWarningKind.MissingProjectFile, warning.Kind);
+        Assert.Contains("Gone.csproj", warning.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -231,6 +256,195 @@ public sealed class ImportServiceTests : IDisposable
 
         Assert.Equal(project, analysis.Project.Project.Path);
         Assert.Equal(ImportWarningKind.MissingProjectFile, Assert.Single(analysis.Warnings).Kind);
+    }
+
+    // ---- AnalyzeAsync with ScopePath (ADR-0013) ----
+
+    [Fact]
+    public async Task Analyze_WithoutScope_DoesNotLookAtOtherProjects()
+    {
+        string a = AddProject("A/A.csproj", "shared");
+        AddProject("B/B.csproj", "shared");
+
+        ImportAnalysis analysis = await _service.AnalyzeAsync(Request(a, """{ "A": "1" }"""), Ct);
+
+        Assert.Empty(analysis.Project.SharedWith);
+        Assert.DoesNotContain(analysis.Warnings, static w => w.Kind == ImportWarningKind.SharedSecretsId);
+        Assert.Single(_cli.Calls, static c => c.Arguments[0] == "msbuild");
+    }
+
+    [Fact]
+    public async Task Analyze_WithFolderScope_FillsSharedWith_CaseInsensitively_AndWarns()
+    {
+        string a = AddProject("A/A.csproj", "shared-id");
+        string b = AddProject("B/B.csproj", "SHARED-ID");
+        AddProject("C/C.csproj", "own");
+        AddProject("D/D.csproj");
+        WriteSecrets("shared-id", """{ "Password": "hunter2" }""");
+
+        ImportAnalysis analysis = await _service.AnalyzeAsync(Request(a, """{ "Password": "s3cr3t-value" }""", scope: _dir), Ct);
+
+        Assert.Equal([b], analysis.Project.SharedWith.Select(static p => p.Path));
+        ImportWarning warning = Assert.Single(analysis.Warnings);
+        Assert.Equal(ImportWarningKind.SharedSecretsId, warning.Kind);
+        Assert.Contains("B", warning.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("hunter2", warning.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("s3cr3t-value", warning.Message, StringComparison.Ordinal);
+        // Each project is resolved once: the target is not resolved again as part of the scope.
+        Assert.Equal(4, _cli.Calls.Count(static c => c.Arguments[0] == "msbuild"));
+    }
+
+    [Fact]
+    public async Task Analyze_WithScope_ListsEverySharingProject_InTheWarning()
+    {
+        string a = AddProject("A/A.csproj", "shared");
+        AddProject("B/B.csproj", "shared");
+        AddProject("C/C.csproj", "shared");
+
+        ImportAnalysis analysis = await _service.AnalyzeAsync(Request(a, "{}", scope: _dir), Ct);
+
+        Assert.Equal(["B", "C"], analysis.Project.SharedWith.Select(static p => p.Name));
+        string message = Assert.Single(analysis.Warnings).Message;
+        Assert.Contains("B", message, StringComparison.Ordinal);
+        Assert.Contains("C", message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Analyze_WithScope_WhenNothingIsShared_HasNoWarning()
+    {
+        string a = AddProject("A/A.csproj", "a");
+        AddProject("B/B.csproj", "b");
+
+        ImportAnalysis analysis = await _service.AnalyzeAsync(Request(a, "{}", scope: _dir), Ct);
+
+        Assert.Empty(analysis.Project.SharedWith);
+        Assert.Empty(analysis.Warnings);
+    }
+
+    [Fact]
+    public async Task Analyze_WithScope_UninitializedTarget_SharesWithNobody()
+    {
+        string a = AddProject("A/A.csproj");
+        AddProject("B/B.csproj");
+
+        ImportAnalysis analysis = await _service.AnalyzeAsync(Request(a, "{}", scope: _dir), Ct);
+
+        Assert.True(analysis.NeedsInit);
+        Assert.Empty(analysis.Project.SharedWith);
+        Assert.Empty(analysis.Warnings);
+    }
+
+    [Fact]
+    public async Task Analyze_TargetOutsideTheScope_IsComparedWithTheScopeProjects()
+    {
+        string target = AddProject("Outside/Target.csproj", "shared");
+        string inside = AddProject("Scope/In/In.csproj", "shared");
+
+        ImportAnalysis analysis = await _service.AnalyzeAsync(Request(target, "{}", scope: Path.Combine(_dir, "Scope")), Ct);
+
+        Assert.Equal([inside], analysis.Project.SharedWith.Select(static p => p.Path));
+        Assert.Equal(ImportWarningKind.SharedSecretsId, Assert.Single(analysis.Warnings).Kind);
+    }
+
+    [Fact]
+    public async Task Analyze_ScopeIsTheTargetProjectItself_SharesWithNobody()
+    {
+        string a = AddProject("A/A.csproj", "shared");
+
+        ImportAnalysis analysis = await _service.AnalyzeAsync(Request(a, "{}", scope: a), Ct);
+
+        Assert.Empty(analysis.Project.SharedWith);
+        Assert.Empty(analysis.Warnings);
+    }
+
+    [Fact]
+    public async Task Analyze_WithSolutionScope_MergesItsWarnings_AndFindsSharedIds()
+    {
+        string a = AddProject("A/A.csproj", "shared");
+        string b = AddProject("B/B.csproj", "shared");
+        string sln = AddSolution("All.slnx", "A/A.csproj", "B/B.csproj", "Gone/Gone.csproj");
+
+        ImportAnalysis analysis = await _service.AnalyzeAsync(Request(a, "{}", scope: sln), Ct);
+
+        Assert.Equal([b], analysis.Project.SharedWith.Select(static p => p.Path));
+        Assert.Equal(
+            [ImportWarningKind.SharedSecretsId, ImportWarningKind.MissingProjectFile],
+            analysis.Warnings.Select(static w => w.Kind).Order());
+    }
+
+    [Fact]
+    public async Task Analyze_TargetIsTheScopeSolution_KeepsItsMissingProjectWarningOnce()
+    {
+        AddProject("App/App.csproj", "app-id");
+        string sln = AddSolution("All.slnx", "App/App.csproj", "Gone/Gone.csproj");
+
+        ImportAnalysis analysis = await _service.AnalyzeAsync(Request(sln, "{}", scope: sln), Ct);
+
+        Assert.Equal(ImportWarningKind.MissingProjectFile, Assert.Single(analysis.Warnings).Kind);
+    }
+
+    [Fact]
+    public async Task Analyze_ScopeWithoutProjects_IsNotAnError()
+    {
+        string a = AddProject("A/A.csproj", "shared");
+        string empty = Directory.CreateDirectory(Path.Combine(_dir, "Empty")).FullName;
+
+        ImportAnalysis analysis = await _service.AnalyzeAsync(Request(a, "{}", scope: empty), Ct);
+
+        Assert.Empty(analysis.Project.SharedWith);
+        Assert.Empty(analysis.Warnings);
+    }
+
+    [Fact]
+    public async Task Analyze_ScopeSolutionWithOnlyMissingProjects_KeepsItsWarnings()
+    {
+        string a = AddProject("A/A.csproj", "shared");
+        string sln = AddSolution("Old.slnx", "Gone/Gone.csproj");
+
+        ImportAnalysis analysis = await _service.AnalyzeAsync(Request(a, "{}", scope: sln), Ct);
+
+        Assert.Empty(analysis.Project.SharedWith);
+        Assert.Equal(ImportWarningKind.MissingProjectFile, Assert.Single(analysis.Warnings).Kind);
+    }
+
+    [Theory]
+    [InlineData("does-not-exist")]
+    [InlineData("does-not-exist.slnx")]
+    [InlineData(" ")]
+    [InlineData("")]
+    public async Task Analyze_ScopeThatDoesNotExist_IsInvalidInput(string scope)
+    {
+        string a = AddProject("A/A.csproj", "a");
+        string scopePath = string.IsNullOrWhiteSpace(scope) ? scope : Path.Combine(_dir, scope);
+
+        ImportException ex = await Assert.ThrowsAsync<ImportException>(() => _service.AnalyzeAsync(Request(a, "{}", scope: scopePath), Ct));
+
+        Assert.Equal(ImportErrorKind.InvalidInput, ex.Kind);
+        Assert.Empty(_cli.Calls);
+    }
+
+    [Fact]
+    public async Task Analyze_UnsupportedScopeFile_IsInvalidInput()
+    {
+        string a = AddProject("A/A.csproj", "a");
+        string txt = Path.Combine(_dir, "notes.txt");
+        File.WriteAllText(txt, "x");
+
+        ImportException ex = await Assert.ThrowsAsync<ImportException>(() => _service.AnalyzeAsync(Request(a, "{}", scope: txt), Ct));
+
+        Assert.Equal(ImportErrorKind.InvalidInput, ex.Kind);
+    }
+
+    [Fact]
+    public async Task Analyze_WithScope_InvalidJson_StopsBeforeRunningDotnet()
+    {
+        string a = AddProject("A/A.csproj", "shared");
+        AddProject("B/B.csproj", "shared");
+
+        ImportException ex = await Assert.ThrowsAsync<ImportException>(() => _service.AnalyzeAsync(Request(a, "[1]", scope: _dir), Ct));
+
+        Assert.Equal(ImportErrorKind.InvalidInput, ex.Kind);
+        Assert.Empty(_cli.Calls);
     }
 
     [Fact]

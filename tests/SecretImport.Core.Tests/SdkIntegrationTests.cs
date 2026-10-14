@@ -121,7 +121,7 @@ public sealed class SdkIntegrationTests : IDisposable
         ImportRequest request = new(_tree.Root, new JsonInput("input.json", """{ "ConnectionStrings": { "Default": "Server=." }, "Port": 5432 }"""), ImportMode.Overwrite, null);
         CancellationToken ct = TestContext.Current.CancellationToken;
 
-        ProjectInfo discovered = Assert.Single(await service.DiscoverProjectsAsync(_tree.Root, ct));
+        ProjectInfo discovered = Assert.Single((await service.DiscoverProjectsAsync(_tree.Root, ct)).Projects);
         ImportAnalysis before = await service.AnalyzeAsync(request, ct);
         await service.InitAsync(before.Project.Project, ct);
         ImportAnalysis after = await service.AnalyzeAsync(request, ct);
@@ -135,6 +135,30 @@ public sealed class SdkIntegrationTests : IDisposable
         Assert.Equal(Path.Combine(secretsRoot, after.Project.UserSecretsId!, "secrets.json"), result.SecretsPath);
         Assert.Equal(2, result.Added);
         Assert.Contains("\"ConnectionStrings:Default\": \"Server=.\"", File.ReadAllText(result.SecretsPath), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ImportService_ScopeSolution_WarnsAboutAnIdSharedThroughDirectoryBuildProps()
+    {
+        File.WriteAllText(Path.Combine(_tree.Root, "Directory.Build.props"), "<Project><PropertyGroup><UserSecretsId>props-shared-id</UserSecretsId></PropertyGroup></Project>");
+        ProjectRef api = _tree.AddProject("src/Api/Api.csproj");
+        ProjectRef worker = _tree.AddProject("src/Worker/Worker.csproj");
+        string slnx = Path.Combine(_tree.Root, "All.slnx");
+        File.WriteAllText(slnx, """<Solution><Project Path="src/Api/Api.csproj" /><Project Path="src/Worker/Worker.csproj" /></Solution>""");
+        string secretsRoot = Path.Combine(_tree.Root, "usersecrets");
+        ImportService service = new(
+            new ProjectLocator(), new UserSecretsIdResolver(_cli), new SecretsInitializer(_cli), new JsonFlattener(), new ImportPlanner(),
+            new SecretsStore(id => Path.Combine(secretsRoot, id, "secrets.json")), _cli);
+        ImportRequest request = new(api.Path, new JsonInput("input.json", """{ "Token": "do-not-print-me" }"""), ImportMode.Overwrite, null, slnx);
+
+        ImportAnalysis analysis = await service.AnalyzeAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.Equal("props-shared-id", analysis.Project.UserSecretsId);
+        Assert.Equal([worker], analysis.Project.SharedWith);
+        ImportWarning warning = Assert.Single(analysis.Warnings);
+        Assert.Equal(ImportWarningKind.SharedSecretsId, warning.Kind);
+        Assert.Contains("Worker", warning.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("do-not-print-me", warning.Message, StringComparison.Ordinal);
     }
 
     [Fact]

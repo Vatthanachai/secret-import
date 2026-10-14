@@ -8,8 +8,9 @@ tags: [adr]
 ## Options
 ```
 secret-import --project <path> --file <json|-> [--mode overwrite|skip|replace]
-              [--section <path>] [--dry-run] [--yes] [--init] [--show-values]
+              [--section <path>] [--scope <path>] [--dry-run] [--yes] [--init] [--show-values]
 ```
+`--scope` ใช้ตรวจ id ร่วม ([[ADR-0013-scope-and-discovery-warnings]]) ถ้าไม่ระบุจะเลือก scope ให้อัตโนมัติ
 
 ## stdin (`--file -`)
 - อ่าน JSON จาก stdin เพื่อให้ใช้กับ pipe ได้โดยไม่ต้องเขียน secret ลง disk (`op read … | secret-import --file - …`)

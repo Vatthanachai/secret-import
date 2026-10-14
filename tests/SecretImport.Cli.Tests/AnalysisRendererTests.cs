@@ -41,6 +41,7 @@ public sealed class AnalysisRendererTests : IDisposable
 
         Assert.Contains("+1 added, ~1 changed, -1 removed, 1 unchanged, 1 skipped", output);
         Assert.DoesNotContain("Shared with", output);
+        Assert.DoesNotContain("Scope", output);
     }
 
     [Fact]
@@ -114,6 +115,16 @@ public sealed class AnalysisRendererTests : IDisposable
         Assert.Matches(@"Shared with:\s+Other, Web", console.Output);
         Assert.Contains("warning: Other.csproj uses the same UserSecretsId.", console.Output);
         Assert.Contains("warning: secrets.json is readable by [group].", console.Output);
+    }
+
+    [Fact]
+    public void Render_ShowsTheScope_OnlyWhenOneWasUsed()
+    {
+        ImportAnalysis withScope = TestData.Initialized() with { Request = TestData.PlaceholderRequest with { ScopePath = "/repo/All.slnx" } };
+
+        AnalysisRenderer.Render(console, withScope, showValues: false);
+
+        Assert.Matches(@"Scope:\s+/repo/All.slnx", console.Output);
     }
 
     [Fact]

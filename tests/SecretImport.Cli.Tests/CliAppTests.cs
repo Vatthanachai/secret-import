@@ -20,7 +20,7 @@ public sealed class CliAppTests : IDisposable
         Assert.Contains("secret-import", cli.Out.Output);
         Assert.Contains("Usage:", cli.Out.Output);
         Assert.Contains("user-secrets", cli.Out.Output);
-        foreach (string option in new[] { "--project", "--file", "--mode", "--section", "--dry-run", "--yes", "--init", "--show-values" })
+        foreach (string option in new[] { "--project", "--file", "--mode", "--section", "--scope", "--dry-run", "--yes", "--init", "--show-values" })
         {
             Assert.Contains(option, cli.Out.Output);
         }
@@ -98,6 +98,68 @@ public sealed class CliAppTests : IDisposable
         Assert.Equal("""{ "Api": { "Key": "x" } }""", request.Json.Content);
         Assert.Equal("App:Auth", request.Section);
         Assert.Equal(ImportMode.Overwrite, request.Mode);
+    }
+
+    [Fact]
+    public async Task Scope_IsPassedToCoreAsGiven()
+    {
+        cli.Service.Returns(TestData.Initialized());
+
+        await cli.RunImportAsync("--scope", "some/All.slnx", "--dry-run");
+
+        Assert.Equal("some/All.slnx", Assert.Single(cli.Service.AnalyzeRequests).ScopePath);
+    }
+
+    [Fact]
+    public async Task WithoutScope_AndNoSolutionToFind_NoScopeIsSent()
+    {
+        cli.Service.Returns(TestData.Initialized());
+
+        await cli.RunImportAsync("--dry-run");
+
+        Assert.Null(Assert.Single(cli.Service.AnalyzeRequests).ScopePath);
+    }
+
+    [Fact]
+    public async Task WithoutScope_AProjectFileNextToOneSolution_UsesThatSolution()
+    {
+        string dir = Directory.CreateTempSubdirectory("secret-import-cli-scope-").FullName;
+        try
+        {
+            string project = Path.Combine(dir, "App.csproj");
+            string solution = Path.Combine(dir, "App.slnx");
+            File.WriteAllText(project, "<Project />");
+            File.WriteAllText(solution, "<Solution />");
+            cli.Service.Returns(TestData.Initialized());
+
+            await cli.RunAsync("--project", project, "--file", cli.JsonPath, "--dry-run");
+
+            Assert.Equal(solution, Assert.Single(cli.Service.AnalyzeRequests).ScopePath);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task WithoutScope_AFolderProject_IsAlsoTheScope()
+    {
+        string dir = Directory.CreateTempSubdirectory("secret-import-cli-scope-").FullName;
+        try
+        {
+            cli.Service.Returns(TestData.Initialized());
+
+            await cli.RunAsync("--project", dir, "--file", cli.JsonPath, "--dry-run");
+
+            ImportRequest request = Assert.Single(cli.Service.AnalyzeRequests);
+            Assert.Equal(dir, request.ProjectPath);
+            Assert.Equal(dir, request.ScopePath);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
     }
 
     [Fact]

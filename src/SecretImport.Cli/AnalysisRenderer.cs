@@ -31,6 +31,11 @@ public static class AnalysisRenderer
             AddRow(summary, "Shared with", string.Join(", ", project.SharedWith.Select(static p => p.Name)));
         }
 
+        if (request.ScopePath is not null)
+        {
+            AddRow(summary, "Scope", request.ScopePath);
+        }
+
         console.Write(summary);
         console.WriteLine();
 

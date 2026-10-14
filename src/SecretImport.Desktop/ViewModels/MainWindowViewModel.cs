@@ -19,6 +19,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private readonly IRecentProjectsStore _recentProjects;
     private JsonInput? _json;
 
+    /// <summary>The path the listed projects were discovered from; sent as <see cref="ImportRequest.ScopePath"/> (ADR-0013).</summary>
+    private string? _discoveryPath;
+
     public MainWindowViewModel(IImportService importService, IFilePickerService pickers, IRecentProjectsStore recentProjects)
     {
         _importService = importService;
@@ -67,6 +70,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     public partial string ProjectPath { get; set; } = string.Empty;
 
     public ObservableCollection<ProjectItemViewModel> Projects { get; } = [];
+
+    /// <summary>Problems found while reading the folder or solution, e.g. a project listed in the solution that does not exist.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasDiscoveryWarnings))]
+    public partial IReadOnlyList<ImportWarning> DiscoveryWarnings { get; private set; } = [];
+
+    public bool HasDiscoveryWarnings => DiscoveryWarnings.Count > 0;
 
     public ObservableCollection<string> RecentProjects { get; }
 
@@ -207,6 +217,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         GoTo(WizardStep.Project);
         Result = null;
         _json = null;
+        _discoveryPath = null;
+        DiscoveryWarnings = [];
         Projects.Clear();
         SelectedProject = null;
         ProjectPath = string.Empty;
@@ -315,8 +327,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     {
         Projects.Clear();
         SelectedProject = null;
-        IReadOnlyList<ProjectInfo> found = await _importService.DiscoverProjectsAsync(ProjectPath.Trim());
-        foreach (ProjectInfo info in found)
+        DiscoveryWarnings = [];
+        _discoveryPath = null;
+        string path = ProjectPath.Trim();
+        DiscoveryResult found = await _importService.DiscoverProjectsAsync(path);
+        _discoveryPath = path;
+        DiscoveryWarnings = found.Warnings;
+        foreach (ProjectInfo info in found.Projects)
         {
             Projects.Add(new ProjectItemViewModel(info));
         }
@@ -334,7 +351,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private async Task AnalyzeCurrentAsync()
     {
         string? section = string.IsNullOrWhiteSpace(Section) ? null : Section.Trim();
-        ImportRequest request = new(SelectedProject!.Path, _json!, Mode, section);
+        ImportRequest request = new(SelectedProject!.Path, _json!, Mode, section, _discoveryPath);
         ImportAnalysis analysis = await _importService.AnalyzeAsync(request);
 
         ClearPlan();

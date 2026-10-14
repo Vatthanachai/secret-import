@@ -41,7 +41,7 @@ public sealed class ServiceCollectionExtensionsTests
 
     private sealed class FakeImportService : IImportService
     {
-        public Task<IReadOnlyList<ProjectInfo>> DiscoverProjectsAsync(string path, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<DiscoveryResult> DiscoverProjectsAsync(string path, CancellationToken ct = default) => throw new NotSupportedException();
 
         public Task<ImportAnalysis> AnalyzeAsync(ImportRequest request, CancellationToken ct = default) => throw new NotSupportedException();
 
