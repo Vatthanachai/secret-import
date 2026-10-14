@@ -40,6 +40,31 @@ public class ContractRecordsTests
     }
 
     [Fact]
+    public void ImportRequest_ScopePath_DefaultsToNull_AndCanBeSet()
+    {
+        JsonInput json = new("in.json", "{}");
+
+        ImportRequest withoutScope = new("src/Api", json, ImportMode.Overwrite, null);
+        ImportRequest withScope = new("src/Api", json, ImportMode.Overwrite, null, "All.slnx");
+
+        Assert.Null(withoutScope.ScopePath);
+        Assert.Equal("All.slnx", withScope.ScopePath);
+        Assert.Equal(withScope, withoutScope with { ScopePath = "All.slnx" });
+    }
+
+    [Fact]
+    public void DiscoveryResult_KeepsProjectsAndWarnings()
+    {
+        ProjectInfo project = new(Api, null, SecretsIdSource.None, []);
+        ImportWarning warning = new(ImportWarningKind.MissingProjectFile, "Gone.csproj is missing.");
+
+        DiscoveryResult result = new([project], [warning]);
+
+        Assert.Same(project, Assert.Single(result.Projects));
+        Assert.Same(warning, Assert.Single(result.Warnings));
+    }
+
+    [Fact]
     public void ImportResult_HasValueEquality()
     {
         ImportResult result = new(Added: 1, Changed: 2, Removed: 3, "/s/secrets.json", "/s/secrets.json.bak");

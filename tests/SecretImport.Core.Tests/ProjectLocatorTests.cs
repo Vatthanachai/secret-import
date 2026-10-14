@@ -162,6 +162,26 @@ public sealed class ProjectLocatorTests : IDisposable
     }
 
     [Fact]
+    public async Task AllowEmpty_EmptyFolder_ReturnsNoProjects()
+    {
+        ProjectLocation location = await _locator.LocateAsync(_dir, allowEmpty: true, TestContext.Current.CancellationToken);
+
+        Assert.Empty(location.Projects);
+        Assert.Empty(location.Warnings);
+    }
+
+    [Fact]
+    public async Task AllowEmpty_SolutionWithOnlyMissingProjects_ReturnsTheWarning()
+    {
+        string sln = Touch("Empty.slnx", """<Solution><Project Path="gone/Gone.csproj" /></Solution>""");
+
+        ProjectLocation location = await _locator.LocateAsync(sln, allowEmpty: true, TestContext.Current.CancellationToken);
+
+        Assert.Empty(location.Projects);
+        Assert.Equal(ImportWarningKind.MissingProjectFile, Assert.Single(location.Warnings).Kind);
+    }
+
+    [Fact]
     public async Task CorruptSolution_IsInvalidInput()
     {
         string sln = Touch("Broken.slnx", "<Solution><Project");

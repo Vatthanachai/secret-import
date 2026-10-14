@@ -20,7 +20,10 @@ internal sealed class ProjectLocator
     /// <see cref="ImportErrorKind.InvalidInput"/> for a blank path, an unsupported file or an unreadable solution;
     /// <see cref="ImportErrorKind.NoProjectFound"/> when the path does not exist or contains no project.
     /// </exception>
-    public async Task<ProjectLocation> LocateAsync(string path, CancellationToken ct = default)
+    public Task<ProjectLocation> LocateAsync(string path, CancellationToken ct = default) => LocateAsync(path, allowEmpty: false, ct);
+
+    /// <param name="allowEmpty">True returns an empty list (with any warnings) instead of throwing when no project is found.</param>
+    public async Task<ProjectLocation> LocateAsync(string path, bool allowEmpty, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
@@ -51,7 +54,7 @@ internal sealed class ProjectLocator
             throw new ImportException(ImportErrorKind.InvalidInput, $"{fullPath} is not a .csproj, .fsproj, .vbproj, .sln or .slnx file.");
         }
 
-        if (files.Count == 0)
+        if (files.Count == 0 && !allowEmpty)
         {
             string details = string.Concat(warnings.Select(static w => " " + w.Message));
             throw new ImportException(ImportErrorKind.NoProjectFound, $"No .csproj, .fsproj or .vbproj project was found in {fullPath}.{details}");
