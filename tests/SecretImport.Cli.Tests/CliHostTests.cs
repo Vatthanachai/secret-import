@@ -9,6 +9,14 @@ namespace SecretImport.Cli.Tests;
 public class CliHostTests
 {
     [Fact]
+    public void CreateDefault_ResolvesCliAppWithCoreImportService()
+    {
+        CliApp app = CliHost.CreateDefault();
+
+        Assert.NotNull(app);
+    }
+
+    [Fact]
     public async Task AddSecretImportCli_ResolvesCliApp_WritingOutputToStdoutAndErrorsToStderr()
     {
         StringWriter stdout = new();

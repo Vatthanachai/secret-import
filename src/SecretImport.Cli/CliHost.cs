@@ -14,7 +14,7 @@ public static class CliHost
     {
         return new ServiceCollection()
             .AddSecretImportCli(Console.Out, Console.Error, Console.In, Console.IsInputRedirected)
-            // Core registers IImportService here (AddSecretImportCore) once Phase 5 is merged.
+            .AddSecretImportCore()
             .BuildServiceProvider(validateScopes: true)
             .GetRequiredService<CliApp>();
     }
