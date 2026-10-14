@@ -34,6 +34,12 @@ tags: [feature]
 - [ ] Unix: ไฟล์ใหม่เป็น `600` ไฟล์เดิมใช้ permission เดิม และเตือนถ้า group/other อ่านได้ ([[ADR-0009-unix-file-permissions]])
 - [ ] รองรับ `.csproj`, `.fsproj`, `.vbproj` และ `.sln`, `.slnx`
 
+## Open questions
+พบระหว่าง QA เมื่อ 2026-10-14 ต้องให้ผู้ใช้ตัดสินใจเพราะเป็นการเปลี่ยน public contract ของ Core
+- **ไม่มีคำเตือน shared id ตอน Analyze:** `AnalyzeAsync` เห็นแค่โปรเจคเดียว `SharedWith` จึงว่างเสมอ และคำเตือน `SharedSecretsId` ไม่ขึ้นในหน้า confirm ซึ่งขัดกับ ADR-0005 ข้อเสนอคือเพิ่ม scope path (ไม่บังคับ) ใน `ImportRequest`
+- **`DiscoverProjectsAsync` ส่งคำเตือนกลับไม่ได้:** คำเตือน `MissingProjectFile` ของ solution จะหายไป ข้อเสนอคือให้คืนเป็น record `{ Projects, Warnings }`
+- **`CanInit`** เป็น true เฉพาะเมื่อ `NeedsInit` เป็น true และมี SDK ซึ่งเป็นพฤติกรรมที่ใช้อยู่ตอนนี้
+
 ## Decisions
 ตัดสินใจครบทุกข้อแล้ว (as of 2026-10-14) ดู [[02-Decisions/README|Decisions]] โดยเฉพาะ [[ADR-0007-tech-stack]] และ [[ADR-0010-distribution]]
 
