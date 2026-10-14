@@ -6,18 +6,40 @@ These are the instructions for AI coding agents working in this repository. `CLA
 
 A tool that imports a JSON file into a .NET project's `dotnet user-secrets` store. It ships as an **Avalonia** desktop app and a **CLI** (`secret-import` dotnet tool) and must work on Windows, macOS, and Linux. MAUI was considered and rejected because it has no Linux support (ADR-0001).
 
-## Current state: planning complete, no code yet
+## Current state: Phase 0 scaffold done
 
-There are no source files and no build/test commands yet. The design lives in the Obsidian vault in `obsidian/` (open that folder as the vault, not the repo root):
+`SecretImport.slnx` contains `src/SecretImport.Core`, `src/SecretImport.Cli`, `src/SecretImport.Desktop` and a matching `tests/*.Tests` project for each (all `net10.0`). Core holds the public contracts only; `IImportService` has no implementation yet. The design lives in the Obsidian vault in `obsidian/` (open that folder as the vault, not the repo root):
 
 - `obsidian/03-Features/Import-JSON-to-User-Secrets.md` — spec and acceptance criteria
-- `obsidian/01-Architecture/Overview.md` — planned solution layout, Core components, and the Analyze → Apply flow
+- `obsidian/01-Architecture/Overview.md` — solution layout, Core public contracts and components, and the Analyze → Apply flow
 - `obsidian/03-Features/Implementation-Plan.md` — phased plan (Phase 0–8); follow it in order and tick the checkboxes as you finish items
 - `obsidian/02-Decisions/ADR-*.md` — accepted decisions; don't contradict these without a new ADR
 
-All open questions were resolved on 2026-10-14. The stack is `net10.0` (SDK pinned via `global.json`), Avalonia 12.1 + CommunityToolkit.Mvvm, System.CommandLine 2.0 + Spectre.Console, and SolutionPersistence. Pinned versions are in ADR-0007. The CLI contract and exit codes are in ADR-0008, Unix file permissions in ADR-0009, and distribution (GitHub Releases only, no nuget.org) in ADR-0010.
+The stack is `net10.0` (SDK pinned via `global.json`), Avalonia 12.1 + CommunityToolkit.Mvvm, System.CommandLine 2.0 + Spectre.Console, and SolutionPersistence. Package versions are pinned centrally in `Directory.Packages.props` (ADR-0007, ADR-0011). The CLI contract and exit codes are in ADR-0008, Unix file permissions in ADR-0009, and distribution (GitHub Releases only, no nuget.org) in ADR-0010.
 
-After Phase 0 (scaffold), replace this section with the real `dotnet build` / `dotnet test` commands, including how to run a single test (`dotnet test --filter "FullyQualifiedName~<TestName>"`).
+## Build and test commands
+
+Run from the repo root (or your worktree root):
+
+```bash
+dotnet build -c Release                                      # must have zero warnings (TreatWarningsAsErrors)
+dotnet test -c Release                                       # all tests
+dotnet test -c Release -p:CollectCoverage=true               # tests + coverage gate (90% line and branch per test project)
+dotnet test --filter "FullyQualifiedName~<TestName>"         # a single test or class, e.g. ~ImportPlanTests
+dotnet test tests/SecretImport.Core.Tests                    # one test project
+dotnet test --filter "Category!=Integration"                 # skip tests that run the real dotnet SDK
+
+# HTML coverage report (after a CollectCoverage run)
+dotnet tool restore
+dotnet reportgenerator "-reports:TestResults/coverage/*/coverage.cobertura.xml" "-targetdir:TestResults/coverage/report" "-reporttypes:Html;TextSummary"
+
+dotnet run --project src/SecretImport.Cli -- --help          # CLI
+dotnet run --project src/SecretImport.Desktop                # desktop app
+```
+
+- Coverage results go to `TestResults/coverage/<TestProject>/coverage.cobertura.xml` (git-ignored). Each test project measures only its project under test (`SecretImport.X.Tests` → `SecretImport.X`).
+- Tests use xUnit v3 through the VSTest adapter (`IsTestingPlatformApplication=false` in `tests/Directory.Build.props`), because `coverlet.msbuild` hooks the VSTest target.
+- Desktop UI tests run on Avalonia's headless platform through the `HeadlessSession` assembly fixture (`await headless.RunAsync(() => ...)`). `Avalonia.Headless.XUnit` 12.1.x doesn't work with xUnit v3 4.0, so it isn't used.
 
 ## Testing, coverage, and branches (ADR-0011, ADR-0012)
 
