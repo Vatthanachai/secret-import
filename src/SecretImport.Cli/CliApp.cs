@@ -42,6 +42,13 @@ public sealed class CliApp(IAnsiConsole console, IAnsiConsole errorConsole, Text
         HelpName = "path",
     };
 
+    private readonly Option<string?> scopeOption = new("--scope")
+    {
+        Description = "A folder or .sln/.slnx whose projects are checked for a UserSecretsId shared with --project. "
+            + "Defaults to --project when it is a folder or solution, else to the nearest single .sln/.slnx above the project file.",
+        HelpName = "path",
+    };
+
     private readonly Option<bool> dryRunOption = new("--dry-run") { Description = "Show the diff without writing anything (always exits 0)." };
 
     private readonly Option<bool> yesOption = new("--yes", "-y") { Description = "Import without asking for confirmation." };
@@ -72,6 +79,7 @@ public sealed class CliApp(IAnsiConsole console, IAnsiConsole errorConsole, Text
             fileOption,
             modeOption,
             sectionOption,
+            scopeOption,
             dryRunOption,
             yesOption,
             initOption,
@@ -88,6 +96,7 @@ public sealed class CliApp(IAnsiConsole console, IAnsiConsole errorConsole, Text
             parseResult.GetRequiredValue(fileOption),
             parseResult.GetValue(modeOption),
             parseResult.GetValue(sectionOption),
+            parseResult.GetValue(scopeOption),
             parseResult.GetValue(dryRunOption),
             parseResult.GetValue(yesOption),
             parseResult.GetValue(initOption),
