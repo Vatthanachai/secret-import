@@ -35,7 +35,7 @@
       - Desktop Views/*.axaml.cs: view code-behind containing only InitializeComponent().
       - Cli Program.cs: a one-line delegate to the testable CliApp entry point.
     -->
-    <ExcludeByFile>**/*.g.cs;**/obj/**;**/SecretImport.Desktop/Program.cs;**/SecretImport.Desktop/App.axaml.cs;**/SecretImport.Desktop/Views/*.axaml.cs;**/SecretImport.Cli/Program.cs</ExcludeByFile>
+    <ExcludeByFile>**/*.g.cs,**/obj/**,**/SecretImport.Desktop/Program.cs,**/SecretImport.Desktop/App.axaml.cs,**/SecretImport.Desktop/Views/*.axaml.cs,**/SecretImport.Cli/Program.cs</ExcludeByFile>
   </PropertyGroup>
 
   <ItemGroup>

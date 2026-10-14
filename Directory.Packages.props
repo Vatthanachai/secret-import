@@ -26,6 +26,7 @@
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
     <PackageVersion Include="coverlet.msbuild" Version="10.1.0" />
     <PackageVersion Include="Spectre.Console.Testing" Version="0.57.2" />
-    <PackageVersion Include="Avalonia.Headless.XUnit" Version="12.1.4" />
+    <!-- Avalonia.Headless.XUnit 12.1.4 is built against xunit.v3 3.2 and fails discovery on xunit.v3 4.0; Desktop.Tests drives Avalonia.Headless directly instead. -->
+    <PackageVersion Include="Avalonia.Headless" Version="12.1.4" />
   </ItemGroup>
 </Project>
