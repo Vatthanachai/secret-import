@@ -138,6 +138,7 @@ public sealed class JsonFlattenerTests
     [InlineData("\"text\"")]
     [InlineData("42")]
     [InlineData("null")]
+    [InlineData("true")]
     public void RootThatIsNotAnObject_IsAnError(string json)
     {
         ImportException ex = Assert.Throws<ImportException>(() => Flatten(json));
