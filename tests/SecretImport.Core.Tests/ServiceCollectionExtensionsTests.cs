@@ -18,6 +18,21 @@ public sealed class ServiceCollectionExtensionsTests
         Assert.Same(service, provider.GetRequiredService<IImportService>());
         Assert.IsType<DotnetCli>(provider.GetRequiredService<IDotnetCli>());
         Assert.NotNull(provider.GetRequiredService<SecretsStore>());
+        SolutionScopeResolver resolver = provider.GetRequiredService<SolutionScopeResolver>();
+        Assert.Same(resolver, provider.GetRequiredService<SolutionScopeResolver>());
+    }
+
+    [Fact]
+    public void AddSecretImportCore_KeepsAnExistingSolutionScopeResolverRegistration()
+    {
+        ServiceCollection services = new();
+        SolutionScopeResolver resolver = new(static _ => []);
+        services.AddSingleton(resolver);
+
+        services.AddSecretImportCore();
+        using ServiceProvider provider = services.BuildServiceProvider();
+
+        Assert.Same(resolver, provider.GetRequiredService<SolutionScopeResolver>());
     }
 
     [Fact]
