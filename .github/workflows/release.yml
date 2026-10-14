@@ -141,14 +141,11 @@ jobs:
 
       - name: Pack
         shell: bash
-        # PackAsTool/ToolCommandName/RollForward are passed here until SecretImport.Cli.csproj declares them.
+        # PackAsTool/ToolCommandName/RollForward are declared in SecretImport.Cli.csproj.
         run: >
           dotnet pack src/SecretImport.Cli/SecretImport.Cli.csproj
           -c Release
           -p:Version="$VERSION"
-          -p:PackAsTool=true
-          -p:ToolCommandName=secret-import
-          -p:RollForward=Major
           -o artifacts
 
       - name: Smoke test the tool package
