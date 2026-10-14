@@ -34,6 +34,13 @@ Task<DiscoveryResult> DiscoverProjectsAsync(string path, CancellationToken ct = 
   - ถ้า `--project` เป็นไฟล์โปรเจค → หา `.sln`/`.slnx` ที่ใกล้ที่สุดในโฟลเดอร์แม่ขึ้นไป ถ้าเจอมากกว่าหนึ่งไฟล์ในโฟลเดอร์เดียวกัน หรือไม่เจอเลย → ไม่ใช้ scope
   - การหา solution อัตโนมัติอยู่ใน Cli เพราะเป็นนโยบายของ CLI ไม่ใช่ของ Core
 
+## พฤติกรรมเพิ่มเติมที่ตกลงตอน QA (2026-10-14)
+- scope ที่มีอยู่จริงแต่ไม่มีโปรเจค → ไม่ error ถือว่าไม่มีอะไรให้เทียบ แต่ถ้าเป็น solution ที่โปรเจคหายหมด ยังคงมีคำเตือน `MissingProjectFile`
+- `ScopePath` ที่ว่างหรือมีแต่ช่องว่าง → ถือว่าไม่มีอยู่จริง → `InvalidInput`
+- CLI หา solution อัตโนมัติ: หยุดที่โฟลเดอร์แรกที่มี `.sln`/`.slnx` ถ้ามีหลายไฟล์ในโฟลเดอร์นั้น (เช่น `App.sln` คู่กับ `App.slnx`) → ไม่ใช้ scope และโฟลเดอร์ที่อ่านไม่ได้ให้ข้ามไป
+- หน้า confirm ของ CLI แสดงแถว `Scope:` และ `Shared with:`
+- Desktop: ถ้าผู้ใช้ค้นหาจากไฟล์โปรเจคเดี่ยว scope ก็คือไฟล์นั้น จึงไม่มีคำเตือน id ร่วม (ต่างจาก CLI ซึ่งหา solution ให้อัตโนมัติ) ดู open question ใน spec
+
 ## Consequences
 - ต้องแก้ทั้ง Core, Cli, Desktop และ fake ใน test ทั้งหมดพร้อมกันใน bugfix เดียว
 - `ImportRequest` ที่สร้างแบบเดิม (4 argument) ยัง compile ได้ เพราะ `ScopePath` มีค่าเริ่มต้น
