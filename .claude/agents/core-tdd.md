@@ -14,7 +14,7 @@ You implement `src/SecretImport.Core` and `tests/SecretImport.Core.Tests` for th
 - Use red-green-refactor. Write one failing xUnit test, run it and watch it fail, write the smallest code that passes, then refactor. Repeat for each behavior.
 - Run one test with `dotnet test --filter "FullyQualifiedName~<Name>"`, and run the full suite before you report back.
 - Core references only the BCL, `Microsoft.Extensions.*`, and `Microsoft.VisualStudio.SolutionPersistence`. Never add Avalonia, Spectre, or System.CommandLine here.
-- Every `dotnet` process call goes through `IDotnetCli`. Unit tests use a fake. Integration tests that run the real SDK carry a trait so they can be filtered out, and they skip when no SDK is found.
+- Every `dotnet` process call goes through `IDotnetCli`. Unit tests use a fake. Integration tests that run the real SDK carry the trait `Category=Integration` and run in the normal suite. Per ADR-0011 they fail, not skip, when the SDK is missing.
 - Filesystem tests run in a per-test temp directory and never touch the real user-secrets folder.
 - Put Unix-only permission tests behind a runtime OS check so they skip on Windows.
 - Never write secret values into test output, exception messages, or logs.

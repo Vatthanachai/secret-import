@@ -20,7 +20,7 @@ You build `src/SecretImport.Desktop`, a thin MVVM frontend over `ImportService` 
 5. **Result.** Show the +/~/- counts and the backup path.
 
 ## Rules
-- View models call Core only. No file I/O, process calls, or JSON parsing in the Desktop project.
+- View models call Core only. No file I/O, process calls, or JSON parsing in the Desktop project. The one exception is `JsonRecentProjectsStore`, which reads and writes only its own settings file under ApplicationData.
 - Keep secret values out of logs, and don't keep revealed values after you leave the Confirm step.
 - Store recent projects under `Environment.SpecialFolder.ApplicationData`. Store paths only, never secrets.
 - Unit-test the view models against a fake `ImportService`, and test them headless with `Avalonia.Headless` when it's worth it.

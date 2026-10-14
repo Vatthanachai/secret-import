@@ -9,7 +9,8 @@ tags: [adr]
 รับ JSON ทุกรูปแบบที่ root เป็น object แล้ว flatten ตามกติกาของ .NET configuration:
 - object ซ้อนกัน → `Parent:Child`
 - array → `Items:0`, `Items:1`, …
-- number / bool → แปลงเป็น string ที่ invariant culture (`5432`, `true`)
+- number / bool → เก็บตาม text ของ JSON (`5432`, `1e3`, `true`) ส่วน `ConfigurationBuilder` จะเก็บ bool เป็น `True`/`False` ทั้งสองแบบ parse เป็น bool ได้เหมือนกัน golden test จึงเทียบ bool แบบไม่สนตัวพิมพ์เล็ก/ใหญ่ (ตรวจสอบเมื่อ 2026-10-14)
+- object/array ว่าง (`{}`, `[]`) → ข้ามไปโดยไม่เตือน
 - `null` → ข้ามไปและขึ้นคำเตือน
 - string ว่าง `""` → import ตามปกติ
 - รองรับ comment และ trailing comma (`JsonCommentHandling.Skip`, `AllowTrailingCommas`)
