@@ -4,6 +4,7 @@ using Avalonia.Markup.Xaml;
 
 using Microsoft.Extensions.DependencyInjection;
 
+using SecretImport.Core;
 using SecretImport.Desktop.Views;
 
 namespace SecretImport.Desktop;
@@ -19,9 +20,7 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            // IImportService comes from Core: once ImportService exists this becomes
-            // DesktopServices.Build(static s => s.AddSecretImportCore()).
-            ServiceProvider services = DesktopServices.Build();
+            ServiceProvider services = DesktopServices.Build(static s => s.AddSecretImportCore());
             desktop.MainWindow = services.GetRequiredService<MainWindow>();
             desktop.Exit += (_, _) => services.Dispose();
         }

@@ -30,6 +30,19 @@ public class DesktopServicesTests
     }
 
     [Fact]
+    public void Build_WithCore_ResolvesTheViewModel()
+    {
+        using ServiceProvider services = DesktopServices.Build(static s =>
+        {
+            s.AddSecretImportCore();
+            s.AddSingleton<IRecentProjectsStore>(new FakeRecentProjectsStore());
+        });
+
+        Assert.NotNull(services.GetRequiredService<IImportService>());
+        Assert.NotNull(services.GetRequiredService<MainWindowViewModel>());
+    }
+
+    [Fact]
     public void Configure_AddsAndReplacesServices()
     {
         FakeImportService service = new();
