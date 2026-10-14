@@ -111,6 +111,33 @@ public sealed class SdkIntegrationTests : IDisposable
     }
 
     [Fact]
+    public async Task ImportService_EndToEnd_DiscoverAnalyzeInitAnalyzeApply()
+    {
+        ProjectRef project = _tree.AddProject("src/App/App.csproj");
+        string secretsRoot = Path.Combine(_tree.Root, "usersecrets");
+        ImportService service = new(
+            new ProjectLocator(), new UserSecretsIdResolver(_cli), new SecretsInitializer(_cli), new JsonFlattener(), new ImportPlanner(),
+            new SecretsStore(id => Path.Combine(secretsRoot, id, "secrets.json")), _cli);
+        ImportRequest request = new(_tree.Root, new JsonInput("input.json", """{ "ConnectionStrings": { "Default": "Server=." }, "Port": 5432 }"""), ImportMode.Overwrite, null);
+        CancellationToken ct = TestContext.Current.CancellationToken;
+
+        ProjectInfo discovered = Assert.Single(await service.DiscoverProjectsAsync(_tree.Root, ct));
+        ImportAnalysis before = await service.AnalyzeAsync(request, ct);
+        await service.InitAsync(before.Project.Project, ct);
+        ImportAnalysis after = await service.AnalyzeAsync(request, ct);
+        ImportResult result = await service.ApplyAsync(after, ct);
+
+        Assert.Null(discovered.UserSecretsId);
+        Assert.True(before.NeedsInit);
+        Assert.True(before.CanInit);
+        Assert.False(after.NeedsInit);
+        Assert.Equal(SecretsIdSource.MsBuild, after.Project.Source);
+        Assert.Equal(Path.Combine(secretsRoot, after.Project.UserSecretsId!, "secrets.json"), result.SecretsPath);
+        Assert.Equal(2, result.Added);
+        Assert.Contains("\"ConnectionStrings:Default\": \"Server=.\"", File.ReadAllText(result.SecretsPath), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Initializer_OnABrokenProject_IsIoFailure()
     {
         string path = Path.Combine(_tree.Root, "Broken", "Broken.csproj");
