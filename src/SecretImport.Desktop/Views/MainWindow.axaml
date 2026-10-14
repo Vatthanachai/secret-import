@@ -3,17 +3,189 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:SecretImport.Desktop.ViewModels"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="500"
+        xmlns:core="using:SecretImport.Core"
+        mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="640"
         x:Class="SecretImport.Desktop.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Title="{Binding Title}"
-        Width="800" Height="500">
-  <Design.DataContext>
-    <vm:MainWindowViewModel />
-  </Design.DataContext>
+        Width="900" Height="640" MinWidth="640" MinHeight="480">
 
-  <TextBlock x:Name="HeaderText"
-             Text="{Binding Title}"
-             HorizontalAlignment="Center"
-             VerticalAlignment="Center" />
+  <Window.Styles>
+    <Style Selector="TextBlock.step">
+      <Setter Property="Opacity" Value="0.6" />
+    </Style>
+    <Style Selector="TextBlock.step.current">
+      <Setter Property="Opacity" Value="1" />
+      <Setter Property="FontWeight" Value="Bold" />
+    </Style>
+  </Window.Styles>
+
+  <DockPanel Margin="16">
+    <!-- Header: title and step indicator -->
+    <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0,0,0,12">
+      <TextBlock x:Name="HeaderText" Text="{Binding Title}" FontSize="22" FontWeight="SemiBold" />
+      <StackPanel Orientation="Horizontal" Spacing="12">
+        <TextBlock Classes="step" Classes.current="{Binding IsProjectStep}" Text="1 Project" />
+        <TextBlock Classes="step" Text="&#x203A;" />
+        <TextBlock Classes="step" Classes.current="{Binding IsJsonStep}" Text="2 JSON" />
+        <TextBlock Classes="step" Text="&#x203A;" />
+        <TextBlock Classes="step" Classes.current="{Binding IsConfirmStep}" Text="3 Confirm" />
+        <TextBlock Classes="step" Text="&#x203A;" />
+        <TextBlock Classes="step" Classes.current="{Binding IsResultStep}" Text="4 Result" />
+      </StackPanel>
+    </StackPanel>
+
+    <!-- Footer: busy indicator and the error of the current step -->
+    <StackPanel DockPanel.Dock="Bottom" Spacing="6" Margin="0,12,0,0">
+      <ProgressBar x:Name="BusyIndicator" IsIndeterminate="True" IsVisible="{Binding IsBusy}" />
+      <SelectableTextBlock x:Name="ErrorText" Text="{Binding ErrorMessage}" IsVisible="{Binding HasError}"
+                           Foreground="#D13438" TextWrapping="Wrap" />
+    </StackPanel>
+
+    <Panel>
+      <!-- Step 1: project -->
+      <DockPanel x:Name="ProjectStep" IsVisible="{Binding IsProjectStep}">
+        <StackPanel DockPanel.Dock="Top" Spacing="8">
+          <TextBlock Text="Pick a project file (.csproj, .fsproj, .vbproj), a solution (.sln, .slnx) or a folder." TextWrapping="Wrap" />
+          <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
+            <TextBox x:Name="ProjectPathBox" Text="{Binding ProjectPath}" PlaceholderText="Path to a project, solution or folder" />
+            <Button Grid.Column="1" Content="File..." Command="{Binding BrowseProjectFileCommand}" />
+            <Button Grid.Column="2" Content="Folder..." Command="{Binding BrowseProjectFolderCommand}" />
+            <Button Grid.Column="3" x:Name="FindProjectsButton" Content="Find projects" Command="{Binding DiscoverCommand}" />
+          </Grid>
+        </StackPanel>
+        <Grid DockPanel.Dock="Bottom" ColumnDefinitions="*,Auto" Margin="0,8,0,0">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Recent projects" FontWeight="SemiBold" />
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+              <ComboBox x:Name="RecentList" ItemsSource="{Binding RecentProjects}" HorizontalAlignment="Stretch"
+                        PlaceholderText="No recent projects" />
+              <Button Grid.Column="1" Content="Open" Command="{Binding OpenRecentCommand}"
+                      CommandParameter="{Binding #RecentList.SelectedItem}" />
+            </Grid>
+          </StackPanel>
+          <Button Grid.Column="1" x:Name="ContinueToJsonButton" Content="Next" VerticalAlignment="Bottom" Margin="16,0,0,0"
+                  Classes="accent" Command="{Binding ContinueToJsonCommand}" />
+        </Grid>
+        <ListBox x:Name="ProjectList" Margin="0,8,0,0" ItemsSource="{Binding Projects}" SelectedItem="{Binding SelectedProject}">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:ProjectItemViewModel">
+              <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                <TextBlock Text="{Binding StatusGlyph}" VerticalAlignment="Center" FontSize="16" />
+                <StackPanel Grid.Column="1">
+                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                  <TextBlock Text="{Binding Path}" Opacity="0.7" TextTrimming="CharacterEllipsis" />
+                  <TextBlock Text="{Binding StatusText}" Opacity="0.7" />
+                </StackPanel>
+              </Grid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </DockPanel>
+
+      <!-- Step 2: JSON file and section -->
+      <DockPanel x:Name="JsonStep" IsVisible="{Binding IsJsonStep}">
+        <Grid DockPanel.Dock="Bottom" ColumnDefinitions="Auto,*,Auto">
+          <Button Content="Back" Command="{Binding BackToProjectCommand}" />
+          <Button Grid.Column="2" x:Name="AnalyzeButton" Content="Analyze" Classes="accent" Command="{Binding AnalyzeCommand}" />
+        </Grid>
+        <StackPanel Spacing="8">
+          <TextBlock x:Name="JsonProjectText" Text="{Binding SelectedProject.Name, StringFormat='Project: {0}'}" FontWeight="SemiBold" />
+          <TextBlock Text="JSON file" />
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <TextBox x:Name="JsonPathBox" Text="{Binding JsonPath}" PlaceholderText="Path to the JSON file to import" />
+            <Button Grid.Column="1" Content="Browse..." Command="{Binding BrowseJsonCommand}" />
+          </Grid>
+          <TextBlock Text="Section (optional)" />
+          <TextBox x:Name="SectionBox" Text="{Binding Section}" PlaceholderText="e.g. ConnectionStrings or Parent:Child" />
+        </StackPanel>
+      </DockPanel>
+
+      <!-- Init prompt: the project has no UserSecretsId yet -->
+      <StackPanel x:Name="InitStep" IsVisible="{Binding IsInitStep}" Spacing="10" MaxWidth="640" VerticalAlignment="Center">
+        <TextBlock Text="This project is not initialized for user secrets." FontSize="16" FontWeight="SemiBold" />
+        <TextBlock Text="Run 'dotnet user-secrets init' now? It adds a UserSecretsId to the project file." TextWrapping="Wrap" />
+        <StackPanel x:Name="ManualInitPanel" IsVisible="{Binding ShowManualInit}" Spacing="4">
+          <TextBlock Text="The .NET SDK was not found, so the app cannot initialize the project. Run this yourself, then analyze again:"
+                     TextWrapping="Wrap" />
+          <SelectableTextBlock x:Name="ManualInitCommand" Text="{Binding ManualInitCommandText}" FontFamily="monospace" TextWrapping="Wrap" />
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button x:Name="InitButton" Content="Initialize and continue" Classes="accent" Command="{Binding InitProjectCommand}" />
+          <Button Content="Cancel" Command="{Binding BackToJsonCommand}" />
+        </StackPanel>
+      </StackPanel>
+
+      <!-- Step 3: confirm -->
+      <DockPanel x:Name="ConfirmStep" IsVisible="{Binding IsConfirmStep}">
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="4">
+          <TextBlock Text="UserSecretsId" Opacity="0.7" />
+          <SelectableTextBlock Grid.Column="1" x:Name="SecretsIdText" Text="{Binding Analysis.Project.UserSecretsId}" />
+          <TextBlock Grid.Row="1" Text="secrets.json" Opacity="0.7" />
+          <SelectableTextBlock Grid.Row="1" Grid.Column="1" x:Name="SecretsPathText" Text="{Binding Analysis.SecretsPath}" TextWrapping="Wrap" />
+          <TextBlock Grid.Row="2" Text="Keys" Opacity="0.7" />
+          <TextBlock Grid.Row="2" Grid.Column="1" x:Name="KeyCountsText">
+            <Run Text="{Binding Analysis.ExistingCount}" /><Run Text=" existing, " /><Run Text="{Binding Analysis.IncomingCount}" /><Run Text=" to import" />
+          </TextBlock>
+          <TextBlock Grid.Row="3" Text="Mode" Opacity="0.7" VerticalAlignment="Center" />
+          <ComboBox Grid.Row="3" Grid.Column="1" x:Name="ModeBox" ItemsSource="{Binding Modes}" SelectedItem="{Binding Mode}"
+                    IsEnabled="{Binding IsIdle}" MinWidth="160" />
+          <ItemsControl Grid.Row="4" Grid.ColumnSpan="2" x:Name="WarningsList" ItemsSource="{Binding Analysis.Warnings}"
+                        IsVisible="{Binding HasWarnings}" Margin="0,6,0,0">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="core:ImportWarning">
+                <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Foreground="#C19C00" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </Grid>
+        <Grid DockPanel.Dock="Bottom" ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8" Margin="0,8,0,0">
+          <Button Content="Back" Command="{Binding BackToJsonCommand}" />
+          <Button Grid.Column="1" Content="Re-analyze" Command="{Binding ReanalyzeCommand}" />
+          <TextBlock Grid.Column="2" x:Name="NoChangesText" Text="Nothing to change: secrets.json is already up to date."
+                     IsVisible="{Binding HasNoChanges}" VerticalAlignment="Center" HorizontalAlignment="Right" />
+          <Button Grid.Column="3" x:Name="ApplyButton" Content="Import" Classes="accent" Command="{Binding ApplyCommand}" />
+        </Grid>
+        <DockPanel Margin="0,8,0,0">
+          <Grid DockPanel.Dock="Top" ColumnDefinitions="110,2*,*,*,70" Margin="8,0" ColumnSpacing="8">
+            <TextBlock Text="Change" FontWeight="SemiBold" />
+            <TextBlock Grid.Column="1" Text="Key" FontWeight="SemiBold" />
+            <TextBlock Grid.Column="2" Text="Current value" FontWeight="SemiBold" />
+            <TextBlock Grid.Column="3" Text="New value" FontWeight="SemiBold" />
+          </Grid>
+          <Border BorderThickness="1" BorderBrush="Gray" CornerRadius="4">
+            <ScrollViewer>
+              <ItemsControl x:Name="DiffGrid" ItemsSource="{Binding DiffRows}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:DiffRowViewModel">
+                    <Grid ColumnDefinitions="110,2*,*,*,70" Margin="8,2" ColumnSpacing="8">
+                      <TextBlock Text="{Binding KindLabel}" VerticalAlignment="Center" />
+                      <TextBlock Grid.Column="1" Text="{Binding Key}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                      <TextBlock Grid.Column="2" Classes="old-value" Text="{Binding OldValueDisplay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                      <TextBlock Grid.Column="3" Classes="new-value" Text="{Binding NewValueDisplay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                      <Button Grid.Column="4" Classes="reveal" Content="{Binding RevealLabel}" Command="{Binding ToggleRevealCommand}"
+                              IsVisible="{Binding HasValues}" Padding="6,2" />
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+          </Border>
+        </DockPanel>
+      </DockPanel>
+
+      <!-- Step 4: result -->
+      <StackPanel x:Name="ResultStep" IsVisible="{Binding IsResultStep}" Spacing="8" VerticalAlignment="Center" MaxWidth="640">
+        <TextBlock Text="Import complete" FontSize="18" FontWeight="SemiBold" />
+        <TextBlock x:Name="ResultCountsText" FontSize="16">
+          <Run Text="+" /><Run Text="{Binding Result.Added}" /><Run Text=" added   ~" /><Run Text="{Binding Result.Changed}" /><Run Text=" changed   -" /><Run Text="{Binding Result.Removed}" /><Run Text=" removed" />
+        </TextBlock>
+        <TextBlock Text="secrets.json" Opacity="0.7" />
+        <SelectableTextBlock x:Name="ResultSecretsPathText" Text="{Binding Result.SecretsPath}" TextWrapping="Wrap" />
+        <TextBlock Text="Backup" Opacity="0.7" />
+        <SelectableTextBlock x:Name="BackupPathText" Text="{Binding BackupPathDisplay}" TextWrapping="Wrap" />
+        <Button Content="Import another" Command="{Binding StartOverCommand}" Margin="0,8,0,0" />
+      </StackPanel>
+    </Panel>
+  </DockPanel>
 </Window>
