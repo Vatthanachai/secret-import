@@ -35,7 +35,7 @@ tags: [feature]
 - [ ] รองรับ `.csproj`, `.fsproj`, `.vbproj` และ `.sln`, `.slnx`
 
 ## Open questions
-พบระหว่าง QA เมื่อ 2026-10-14 ต้องให้ผู้ใช้ตัดสินใจเพราะเป็นการเปลี่ยน public contract ของ Core
+พบระหว่าง QA เมื่อ 2026-10-14 สองข้อแรกผู้ใช้อนุมัติแล้ว และกำลังแก้ตาม [[ADR-0013-scope-and-discovery-warnings]] (bugfix `contract-scope-warnings`)
 - **ไม่มีคำเตือน shared id ตอน Analyze:** `AnalyzeAsync` เห็นแค่โปรเจคเดียว `SharedWith` จึงว่างเสมอ และคำเตือน `SharedSecretsId` ไม่ขึ้นในหน้า confirm ซึ่งขัดกับ ADR-0005 ข้อเสนอคือเพิ่ม scope path (ไม่บังคับ) ใน `ImportRequest`
 - **`DiscoverProjectsAsync` ส่งคำเตือนกลับไม่ได้:** คำเตือน `MissingProjectFile` ของ solution จะหายไป ข้อเสนอคือให้คืนเป็น record `{ Projects, Warnings }`
 - **`CanInit`** เป็น true เฉพาะเมื่อ `NeedsInit` เป็น true และมี SDK ซึ่งเป็นพฤติกรรมที่ใช้อยู่ตอนนี้

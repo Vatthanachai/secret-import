@@ -41,7 +41,8 @@ public sealed record JsonInput(string DisplayName, string Content)
     public static JsonInput FromFile(string path);      // UTF-8 (ตัด BOM ออก), DisplayName = full path, ไม่มีไฟล์ → InvalidInput, อ่านไม่ได้ → IoFailure
 }
 
-public sealed record ImportRequest(string ProjectPath, JsonInput Json, ImportMode Mode, string? Section);
+public sealed record ImportRequest(string ProjectPath, JsonInput Json, ImportMode Mode, string? Section, string? ScopePath = null);  // ADR-0013
+public sealed record DiscoveryResult(IReadOnlyList<ProjectInfo> Projects, IReadOnlyList<ImportWarning> Warnings);
 
 public sealed record SecretChange(string Key, SecretChangeKind Kind, string? OldValue, string? NewValue);
 public sealed record ImportPlan(IReadOnlyList<SecretChange> Changes, IReadOnlyDictionary<string, string> Result)
@@ -66,7 +67,7 @@ public sealed class ImportException : Exception
 
 public interface IImportService
 {
-    Task<IReadOnlyList<ProjectInfo>> DiscoverProjectsAsync(string path, CancellationToken ct = default);
+    Task<DiscoveryResult> DiscoverProjectsAsync(string path, CancellationToken ct = default);
     Task<ImportAnalysis> AnalyzeAsync(ImportRequest request, CancellationToken ct = default);   // ยังไม่ init → NeedsInit = true, Plan เทียบกับค่าว่าง
     Task InitAsync(ProjectRef project, CancellationToken ct = default);                          // ไม่มี SDK → ImportException(SdkUnavailable)
     Task<ImportResult> ApplyAsync(ImportAnalysis analysis, CancellationToken ct = default);      // ไฟล์เปลี่ยนไปหลัง Analyze → ConcurrentModification
