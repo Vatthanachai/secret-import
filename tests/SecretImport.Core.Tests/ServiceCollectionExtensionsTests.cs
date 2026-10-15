@@ -63,5 +63,9 @@ public sealed class ServiceCollectionExtensionsTests
         public Task InitAsync(ProjectRef project, CancellationToken ct = default) => throw new NotSupportedException();
 
         public Task<ImportResult> ApplyAsync(ImportAnalysis analysis, CancellationToken ct = default) => throw new NotSupportedException();
+
+        public Task<ExportResult> ExportAsync(ExportRequest request, CancellationToken ct = default) => throw new NotSupportedException();
+
+        public Task WriteExportAsync(string path, string json, bool overwrite, CancellationToken ct = default) => throw new NotSupportedException();
     }
 }

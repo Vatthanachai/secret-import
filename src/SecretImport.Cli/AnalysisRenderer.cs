@@ -64,8 +64,7 @@ public static class AnalysisRenderer
 
         foreach (ImportWarning warning in analysis.Warnings)
         {
-            console.Write(new Markup("[yellow]warning:[/] "));
-            console.WriteLine(warning.Message);
+            ConsoleMessages.WriteWarning(console, warning.Message);
         }
     }
 

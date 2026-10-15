@@ -11,6 +11,12 @@ internal static class TestData
 
     public static readonly ImportRequest PlaceholderRequest = new(Project.Path, new JsonInput("placeholder", "{}"), ImportMode.Overwrite, null);
 
+    /// <summary>Exported JSON as Core renders it: LF line endings, a trailing newline, and text that would break Spectre markup.</summary>
+    public const string ExportJson = "{\n  \"Api\": {\n    \"Key\": \"" + SecretValue + "\"\n  },\n  \"Markup\": \"[red]x[/] ค่า <&>\"\n}\n";
+
+    public static ExportResult Export(string json = ExportJson, int keyCount = 2, params ImportWarning[] warnings) =>
+        new(new ProjectInfo(Project, "app-secrets-id", SecretsIdSource.MsBuild, []), "/secrets/app-secrets-id/secrets.json", keyCount, json, warnings);
+
     public static SecretChange[] SomeChanges() =>
     [
         new("Api:Key", SecretChangeKind.Added, null, SecretValue),

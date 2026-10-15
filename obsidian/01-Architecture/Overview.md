@@ -63,6 +63,9 @@ public sealed record ImportAnalysis(
 
 public sealed record ImportResult(int Added, int Changed, int Removed, string SecretsPath, string? BackupPath);
 
+public sealed record ExportRequest(string ProjectPath, string? Section = null, bool Flat = false);   // ADR-0015
+public sealed record ExportResult(ProjectInfo Project, string SecretsPath, int KeyCount, string Json, IReadOnlyList<ImportWarning> Warnings);
+
 public sealed class ImportException : Exception
 {
     public ImportException(ImportErrorKind kind, string message, IReadOnlyList<ProjectRef>? candidates = null, Exception? innerException = null);
@@ -76,6 +79,8 @@ public interface IImportService
     Task<ImportAnalysis> AnalyzeAsync(ImportRequest request, CancellationToken ct = default);   // ยังไม่ init → NeedsInit = true, Plan เทียบกับค่าว่าง
     Task InitAsync(ProjectRef project, CancellationToken ct = default);                          // ไม่มี SDK → ImportException(SdkUnavailable)
     Task<ImportResult> ApplyAsync(ImportAnalysis analysis, CancellationToken ct = default);      // ไฟล์เปลี่ยนไปหลัง Analyze → ConcurrentModification
+    Task<ExportResult> ExportAsync(ExportRequest request, CancellationToken ct = default);        // ADR-0015, ไม่เขียนอะไร
+    Task WriteExportAsync(string path, string json, bool overwrite, CancellationToken ct = default); // ADR-0015, atomic, Unix 600
 }
 ```
 การ map ไปเป็น exit code ของ CLI: `InvalidInput`/`NoProjectFound`/`MultipleProjects` → `1` และ `SdkUnavailable`/`ConcurrentModification`/`IoFailure` → `3`

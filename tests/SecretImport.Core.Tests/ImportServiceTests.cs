@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace SecretImport.Core.Tests;
 
-public sealed class ImportServiceTests : IDisposable
+public sealed partial class ImportServiceTests : IDisposable
 {
     private readonly string _dir = Directory.CreateTempSubdirectory("secret-import-service-").FullName;
     private readonly string _secretsRoot;

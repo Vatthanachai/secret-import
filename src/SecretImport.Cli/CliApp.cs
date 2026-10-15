@@ -10,7 +10,7 @@ namespace SecretImport.Cli;
 /// <summary>
 /// Testable entry point of the <c>secret-import</c> tool (ADR-0008). <c>Program.cs</c> only delegates here via <see cref="CliHost"/>.
 /// Normal output goes to <paramref name="console"/> (stdout); errors, including parse errors, go to <paramref name="errorConsole"/> (stderr).
-/// With <c>--json</c> everything after parsing is one JSON report on stdout (ADR-0014).
+/// With <c>--json</c> everything after parsing is one JSON report on stdout (ADR-0014). The <c>export</c> subcommand is in ADR-0015.
 /// </summary>
 /// <param name="scopeResolver">Picks the shared-id scope when <c>--scope</c> is omitted; defaults to Core's resolver over the real file system.</param>
 public sealed class CliApp(
@@ -74,6 +74,34 @@ public sealed class CliApp(
             + "Values are included only with --show-values.",
     };
 
+    private readonly Option<string> exportProjectOption = new("--project", "-p")
+    {
+        Description = "The project to export from: a .csproj/.fsproj/.vbproj, a folder, or a .sln/.slnx that resolves to exactly one project.",
+        HelpName = "path",
+        Required = true,
+    };
+
+    private readonly Option<string> outputOption = new("--output", "-o")
+    {
+        Description = "The JSON file to write, or '-' to print the JSON to stdout. Either way the output holds the secret values as plain-text, "
+            + "so keep the file safe. An existing file is not overwritten unless --force is set.",
+        HelpName = "file|-",
+        Required = true,
+    };
+
+    private readonly Option<string?> exportSectionOption = new("--section", "-s")
+    {
+        Description = "Export only the keys under this section, e.g. 'ConnectionStrings' or 'App:Auth'. Keys keep the section prefix.",
+        HelpName = "path",
+    };
+
+    private readonly Option<bool> flatOption = new("--flat")
+    {
+        Description = "Write the keys as stored ('Db:Conn') instead of nesting them into objects and arrays.",
+    };
+
+    private readonly Option<bool> forceOption = new("--force") { Description = "Overwrite --output if the file already exists." };
+
     public async Task<int> RunAsync(string[] args, CancellationToken cancellationToken = default)
     {
         Command root = BuildRootCommand();
@@ -105,7 +133,34 @@ public sealed class CliApp(
             jsonOption,
         };
         root.SetAction(InvokeImportAsync);
+        root.Subcommands.Add(BuildExportCommand());
         return root;
+    }
+
+    private Command BuildExportCommand()
+    {
+        Command export = new("export", "Export a project's user secrets to JSON (nested by default). Never prompts. "
+            + "Warnings and errors go to stderr, so with --output - stdout holds only the JSON.")
+        {
+            exportProjectOption,
+            outputOption,
+            exportSectionOption,
+            flatOption,
+            forceOption,
+        };
+        export.SetAction(InvokeExportAsync);
+        return export;
+    }
+
+    private Task<int> InvokeExportAsync(ParseResult parseResult, CancellationToken cancellationToken)
+    {
+        ExportOptions options = new(
+            parseResult.GetRequiredValue(exportProjectOption),
+            parseResult.GetRequiredValue(outputOption),
+            parseResult.GetValue(exportSectionOption),
+            parseResult.GetValue(flatOption),
+            parseResult.GetValue(forceOption));
+        return new ExportFlow(console, errorConsole, importService).RunAsync(options, cancellationToken);
     }
 
     private Task<int> InvokeImportAsync(ParseResult parseResult, CancellationToken cancellationToken)

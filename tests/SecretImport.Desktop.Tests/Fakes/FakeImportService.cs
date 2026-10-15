@@ -55,6 +55,16 @@ internal sealed class FakeImportService : IImportService
         return Apply(analysis);
     }
 
+    public Task<ExportResult> ExportAsync(ExportRequest request, CancellationToken ct = default)
+    {
+        throw new NotSupportedException("The desktop app has no export yet.");
+    }
+
+    public Task WriteExportAsync(string path, string json, bool overwrite, CancellationToken ct = default)
+    {
+        throw new NotSupportedException("The desktop app has no export yet.");
+    }
+
     private Task WaitGateAsync()
     {
         return Gate ?? Task.CompletedTask;

@@ -34,16 +34,11 @@ internal sealed class JsonFlattener
         List<string> nullKeys = [];
         Visit(document.RootElement, null, values, nullKeys, sourceName);
 
-        string? prefix = NormalizeSection(section);
+        string? prefix = SectionPath.Normalize(section);
         if (prefix is not null)
         {
-            values = values.Where(p => IsInSection(p.Key, prefix))
-                .ToDictionary(static p => p.Key, static p => p.Value, StringComparer.OrdinalIgnoreCase);
-            nullKeys.RemoveAll(k => !IsInSection(k, prefix));
-            if (values.Count == 0)
-            {
-                throw new ImportException(ImportErrorKind.InvalidInput, $"Section '{prefix}' was not found in {sourceName} (or it has no values).");
-            }
+            values = SectionPath.Filter(values, prefix, sourceName);
+            nullKeys.RemoveAll(k => !SectionPath.Contains(prefix, k));
         }
 
         ImportWarning[] warnings = [.. nullKeys.Select(static k => new ImportWarning(ImportWarningKind.NullValueSkipped, $"Key '{k}' is null and was skipped."))];
@@ -120,18 +115,6 @@ internal sealed class JsonFlattener
     }
 
     private static string Combine(string? path, string name) => path is null ? name : $"{path}:{name}";
-
-    private static string? NormalizeSection(string? section)
-    {
-        string? trimmed = section?.Trim().Trim(':').Trim();
-        return string.IsNullOrEmpty(trimmed) ? null : trimmed;
-    }
-
-    private static bool IsInSection(string key, string section) =>
-        key.Equals(section, StringComparison.OrdinalIgnoreCase)
-        || (key.Length > section.Length
-            && key.StartsWith(section, StringComparison.OrdinalIgnoreCase)
-            && key[section.Length] == ':');
 
     private static string Describe(JsonValueKind kind) => kind switch
     {

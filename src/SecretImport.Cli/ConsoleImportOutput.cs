@@ -71,18 +71,7 @@ public sealed class ConsoleImportOutput(IAnsiConsole console, IAnsiConsole error
 
     public int Failed(CliErrorKind kind, string message, IReadOnlyList<ProjectRef> candidates)
     {
-        WriteError(message);
-        foreach (ProjectRef candidate in candidates)
-        {
-            errorConsole.WriteLine($"  {candidate.Name}  {candidate.Path}");
-        }
-
-        if (kind == CliErrorKind.MultipleProjects)
-        {
-            errorConsole.WriteLine("Pass one project file to --project.");
-        }
-
-        return ExitCodes.FromErrorKind(kind);
+        return ConsoleMessages.Failed(errorConsole, kind, message, candidates);
     }
 
     /// <summary>Only called once the flow has an analysis (after Analyze).</summary>
@@ -93,7 +82,6 @@ public sealed class ConsoleImportOutput(IAnsiConsole console, IAnsiConsole error
 
     private void WriteError(string message)
     {
-        errorConsole.Write(new Markup("[red]error:[/] "));
-        errorConsole.WriteLine(message);
+        ConsoleMessages.WriteError(errorConsole, message);
     }
 }

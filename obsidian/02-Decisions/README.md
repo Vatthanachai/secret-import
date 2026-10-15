@@ -15,6 +15,7 @@ Architecture decision records. Create new ones from the ADR template, named `ADR
 - [[ADR-0011-testing-and-coverage]] — xUnit v3 + coverlet, line/branch ≥ 90% ทุกโปรเจค
 - [[ADR-0013-scope-and-discovery-warnings]] — `ScopePath` ตรวจ id ร่วม, `DiscoveryResult` มีคำเตือน, CLI `--scope`
 - [[ADR-0014-cli-json-and-exit-code]] — CLI `--json` (object เดียวบน stdout) และ `--exit-code` (exit `4` เมื่อ dry-run เจอ diff)
+- [[ADR-0015-export-secrets]] — export secrets → JSON (nested/`--flat`), `secret-import export --output <file|->`
 - [[ADR-0012-branching-and-qa]] — git flow (feature → QA gate → develop), worktree ต่อ agent
 
 Back to [[Home]]
