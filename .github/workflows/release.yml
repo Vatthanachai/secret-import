@@ -1,4 +1,4 @@
-# Tag-triggered release (ADR-0010). Tags v* come from `git flow release finish <ver>` (ADR-0012).
+# Tag-triggered release (ADR-0010). Tags v* come from `git flow release finish <ver> -T v<ver>` (ADR-0012).
 # Everything goes to GitHub Releases only. Nothing is ever pushed to nuget.org.
 name: Release
 

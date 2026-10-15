@@ -53,6 +53,6 @@ The builds aren't code-signed or notarized yet, so the OS warns the first time y
 - **Linux:** extract the archive (`tar -xzf SecretImport-<version>-linux-x64.tar.gz`) and run `./SecretImport.Desktop` from the extracted folder. The app needs an X11 or XWayland session and the usual desktop libraries (fontconfig, libICE, libSM).
 
 ## Releasing
-`.github/workflows/release.yml` builds a release when a `v*` tag is pushed. The tag comes from `git flow release finish <version>`, so `1.0.0` creates `v1.0.0`. Run `git push origin v1.0.0` to start the build. A tag with a suffix, such as `v1.0.0-rc.1`, is published as a prerelease.
+`.github/workflows/release.yml` builds a release when a `v*` tag is pushed. The tag comes from `git flow release finish <version> -T v<version>`; pass `-T` because git flow names the tag without the `v` prefix by default. Run `git push origin v1.0.0` to start the build. A tag with a suffix, such as `v1.0.0-rc.1`, is published as a prerelease.
 
 `.github/workflows/ci.yml` builds and tests every push and pull request on Windows, macOS and Linux, and enforces the 90% coverage gate.
