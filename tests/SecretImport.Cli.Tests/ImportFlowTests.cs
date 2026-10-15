@@ -53,6 +53,48 @@ public sealed class ImportFlowTests : IDisposable
         Assert.Empty(cli.Service.ApplyCalls);
     }
 
+    // ---- --exit-code (ADR-0014) ----
+
+    [Fact]
+    public async Task DryRun_ExitCode_WithChanges_ShowsTheDiff_AndReturnsFour()
+    {
+        cli.Service.Returns(TestData.Initialized(TestData.SomeChanges()));
+
+        int exitCode = await cli.RunImportAsync("--dry-run", "--exit-code");
+
+        Assert.Equal(ExitCodes.ChangesPending, exitCode);
+        Assert.Contains("Api:Key", cli.Out.Output);
+        Assert.Contains("Dry run", cli.Out.Output);
+        Assert.Empty(cli.Service.ApplyCalls);
+        Assert.Empty(cli.Err.Output);
+    }
+
+    [Fact]
+    public async Task DryRun_ExitCode_WithoutChanges_ReturnsZero()
+    {
+        cli.Service.Returns(TestData.Initialized(new SecretChange("Same", SecretChangeKind.Unchanged, "a", "a")));
+
+        int exitCode = await cli.RunImportAsync("--dry-run", "--exit-code");
+
+        Assert.Equal(ExitCodes.Success, exitCode);
+    }
+
+    [Fact]
+    public async Task ExitCode_WithoutDryRun_ReturnsOne_WithoutReadingOrWritingAnything()
+    {
+        cli.Stdin = new ThrowingReader();
+        cli.Service.Returns(TestData.Initialized(TestData.SomeChanges()));
+
+        int exitCode = await cli.RunAsync("--project", TestData.Project.Path, "--file", "-", "--exit-code", "--yes");
+
+        Assert.Equal(ExitCodes.InvalidInput, exitCode);
+        Assert.Contains("--exit-code", cli.Err.Output);
+        Assert.Contains("--dry-run", cli.Err.Output);
+        Assert.Empty(cli.Out.Output);
+        Assert.Empty(cli.Service.AnalyzeRequests);
+        Assert.Empty(cli.Service.ApplyCalls);
+    }
+
     // ---- masking ----
 
     [Fact]
