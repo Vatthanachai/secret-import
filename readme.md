@@ -15,6 +15,7 @@ Import values from a JSON file into a .NET project's `dotnet user-secrets` store
 secret-import --project <path> --file <json|-> [--mode overwrite|skip|replace]
               [--section <path>] [--scope <path>] [--dry-run [--exit-code]] [--yes] [--init]
               [--show-values] [--json]
+secret-import export --project <path> --output <file|-> [--section <path>] [--flat] [--force]
 ```
 
 - `--file -` reads JSON from stdin and needs `--yes` unless you also pass `--dry-run`.
@@ -41,6 +42,26 @@ $ secret-import --project src/Api --file secrets.json --dry-run --json
   "error": null
 }
 ```
+
+### Export
+`secret-import export` writes a project's user secrets back out as JSON. You can use it to move secrets to another machine, keep a backup, or paste them into `appsettings.json`. By default, keys like `Db:Conn` are nested back into objects, and `Items:0`, `Items:1` become arrays. Pass `--flat` to keep the keys as they are stored. `--section` exports only one section, and the keys keep their section prefix. The output can be imported again with `secret-import --file`.
+
+- `--output` is required. Pass `--output -` to print the JSON to stdout. Then stdout holds only the JSON, and warnings and errors go to stderr.
+- With a file path, the file is written atomically and stdout shows a one-line summary without values. The tool won't overwrite an existing file unless you pass `--force`. Warnings go to stderr here too.
+- It never prompts and has no `--json`. Exit codes follow the table above: `1` covers an existing output file, a missing section, an uninitialized project, and keys that can't be nested (use `--flat`). `3` covers I/O errors.
+
+```console
+$ secret-import export --project src/Api --output api-secrets.json
+Exported 3 keys from Api to /repo/api-secrets.json
+$ secret-import export -p src/Api -o - --section ConnectionStrings
+{
+  "ConnectionStrings": {
+    "Db": "..."
+  }
+}
+```
+
+> **Warning:** exported files contain your secrets as plain text. Keep them out of source control and delete them when you're done.
 
 ## Install
 All downloads are on the project's GitHub Releases page. Nothing is published to nuget.org. Each release also includes a `SHA256SUMS.txt` file for checking downloads.
