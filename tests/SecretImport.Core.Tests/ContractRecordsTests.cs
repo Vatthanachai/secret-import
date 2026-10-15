@@ -73,4 +73,29 @@ public class ContractRecordsTests
         Assert.Equal(3, result.Removed);
         Assert.Equal("/s/secrets.json.bak", result.BackupPath);
     }
+
+    [Fact]
+    public void ExportRequest_DefaultsToNestedWithoutSection()
+    {
+        ExportRequest request = new("src/Api");
+
+        Assert.Null(request.Section);
+        Assert.False(request.Flat);
+        Assert.Equal(new ExportRequest("src/Api", "Db", Flat: true), request with { Section = "Db", Flat = true });
+    }
+
+    [Fact]
+    public void ExportResult_KeepsEverythingItIsGiven()
+    {
+        ProjectInfo project = new(Api, "abc-123", SecretsIdSource.MsBuild, []);
+        ImportWarning warning = new(ImportWarningKind.InsecureFilePermissions, "Mode 644.");
+
+        ExportResult result = new(project, "/s/secrets.json", 2, "{}\n", [warning]);
+
+        Assert.Same(project, result.Project);
+        Assert.Equal("/s/secrets.json", result.SecretsPath);
+        Assert.Equal(2, result.KeyCount);
+        Assert.Equal("{}\n", result.Json);
+        Assert.Same(warning, Assert.Single(result.Warnings));
+    }
 }

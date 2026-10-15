@@ -60,4 +60,14 @@ internal sealed class FakeImportService : IImportService
         ApplyCalls.Add(analysis);
         return ApplyException is null ? Task.FromResult(ApplyResult) : Task.FromException<ImportResult>(ApplyException);
     }
+
+    public Task<ExportResult> ExportAsync(ExportRequest request, CancellationToken ct = default)
+    {
+        throw new NotSupportedException("Export is not wired into the CLI yet.");
+    }
+
+    public Task WriteExportAsync(string path, string json, bool overwrite, CancellationToken ct = default)
+    {
+        throw new NotSupportedException("Export is not wired into the CLI yet.");
+    }
 }
