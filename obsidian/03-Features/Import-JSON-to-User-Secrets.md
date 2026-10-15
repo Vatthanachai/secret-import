@@ -45,7 +45,7 @@ tags: [feature]
 ## Backlog (หลังเวอร์ชันแรก)
 - import เข้าหลายโปรเจคพร้อมกัน
 - เลือก merge ทีละ key
-- export secrets → JSON
+- export secrets → JSON ในแอป Desktop (Core + CLI เสร็จแล้ว [[ADR-0015-export-secrets]])
 - เก็บ backup หลายเวอร์ชัน
 - sign/notarize, installer และ nuget.org
 
