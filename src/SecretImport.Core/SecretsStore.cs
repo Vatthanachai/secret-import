@@ -25,7 +25,6 @@ internal sealed record SecretsWriteResult(string Path, string? BackupPath);
 /// </summary>
 internal sealed class SecretsStore
 {
-    private const UnixFileMode FileMode600 = UnixFileMode.UserRead | UnixFileMode.UserWrite;
     private const UnixFileMode DirectoryMode700 = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute;
     private const UnixFileMode GroupOrOther = UnixFileMode.GroupRead | UnixFileMode.GroupWrite | UnixFileMode.GroupExecute
         | UnixFileMode.OtherRead | UnixFileMode.OtherWrite | UnixFileMode.OtherExecute;
@@ -106,31 +105,22 @@ internal sealed class SecretsStore
             throw new ImportException(ImportErrorKind.ConcurrentModification, $"{path} changed after it was analyzed. Analyze again before importing.");
         }
 
-        string directory = Path.GetDirectoryName(path)!;
-        string tempPath = Path.Combine(directory, $"{Path.GetFileName(path)}.{Guid.NewGuid():N}.tmp");
         try
         {
-            EnsureDirectory(directory);
+            EnsureDirectory(Path.GetDirectoryName(path)!);
             string? backupPath = null;
             if (current is not null)
             {
                 backupPath = path + ".bak";
                 File.Copy(path, backupPath, overwrite: true);
-                CopyUnixMode(path, backupPath);
+                AtomicFile.CopyUnixMode(path, backupPath);
             }
 
-            WriteTempFile(tempPath, values);
-            if (current is not null)
-            {
-                CopyUnixMode(path, tempPath);
-            }
-
-            File.Move(tempPath, path, overwrite: true);
+            AtomicFile.Write(path, stream => WriteJson(stream, values), overwrite: true);
             return new SecretsWriteResult(path, backupPath);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            TryDelete(tempPath);
             throw new ImportException(ImportErrorKind.IoFailure, $"Cannot write {path}: {ex.Message}", innerException: ex);
         }
     }
@@ -157,28 +147,16 @@ internal sealed class SecretsStore
     private static ReadOnlySpan<byte> StripBom(byte[] bytes) =>
         bytes.AsSpan().StartsWith(Encoding.UTF8.Preamble) ? bytes.AsSpan(Encoding.UTF8.Preamble.Length) : bytes;
 
-    private static void WriteTempFile(string tempPath, IReadOnlyDictionary<string, string> values)
+    private static void WriteJson(Stream stream, IReadOnlyDictionary<string, string> values)
     {
-        FileStreamOptions options = new() { Mode = FileMode.CreateNew, Access = FileAccess.Write, Share = FileShare.None };
-        if (!OperatingSystem.IsWindows())
+        using Utf8JsonWriter writer = new(stream, WriterOptions);
+        writer.WriteStartObject();
+        foreach ((string key, string value) in values)
         {
-            // Never readable by others, not even for an instant (ADR-0009).
-            options.UnixCreateMode = FileMode600;
+            writer.WriteString(key, value);
         }
 
-        using FileStream stream = new(tempPath, options);
-        using (Utf8JsonWriter writer = new(stream, WriterOptions))
-        {
-            writer.WriteStartObject();
-            foreach ((string key, string value) in values)
-            {
-                writer.WriteString(key, value);
-            }
-
-            writer.WriteEndObject();
-        }
-
-        stream.Flush(flushToDisk: true);
+        writer.WriteEndObject();
     }
 
     private static void EnsureDirectory(string directory)
@@ -191,14 +169,6 @@ internal sealed class SecretsStore
         {
             // Only the folder we create ourselves gets 700; parents created along the way get the same.
             Directory.CreateDirectory(directory, DirectoryMode700);
-        }
-    }
-
-    private static void CopyUnixMode(string from, string to)
-    {
-        if (!OperatingSystem.IsWindows())
-        {
-            File.SetUnixFileMode(to, File.GetUnixFileMode(from));
         }
     }
 
@@ -217,17 +187,5 @@ internal sealed class SecretsStore
 
         string octal = Convert.ToString((int)mode & 0x1FF, 8);
         return [new ImportWarning(ImportWarningKind.InsecureFilePermissions, $"{path} has mode {octal}, so other users can access it. Consider 'chmod 600'; this tool does not change it.")];
-    }
-
-    private static void TryDelete(string path)
-    {
-        try
-        {
-            File.Delete(path);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            // Best effort: a stray temp file is harmless and never world-readable.
-        }
     }
 }
