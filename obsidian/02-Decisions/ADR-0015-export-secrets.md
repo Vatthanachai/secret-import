@@ -61,6 +61,16 @@ secret-import export --project <path> --output <file|-> [--section <path>] [--fl
 - exit code ใช้ตารางของ [[ADR-0008-cli-contract]]: `0` สำเร็จ, `1` input ผิด (key ชน, ไฟล์มีอยู่แล้ว, ไม่เจอ section, ยังไม่ init, หลายโปรเจค), `3` I/O
 - ไม่ถาม confirm และไม่มี `--json` (output ก็เป็น JSON อยู่แล้ว)
 
+### รายละเอียดที่ตัดสินตอน implement (2026-10-15)
+- ขึ้นบรรทัดใหม่ด้วย `
+` ทุก OS เพื่อให้ output เหมือนกันทุกเครื่อง
+- root ที่มี key เป็น `0`, `1`, … ยังเป็น object เสมอ เพราะ import รับเฉพาะ root ที่เป็น object
+- ใส่ `Section` แต่ยังไม่มี `secrets.json` → `InvalidInput` (ไม่เจอ section) เหมือนฝั่ง import
+- โฟลเดอร์ปลายทางไม่มีอยู่ → `IoFailure` และไม่สร้างโฟลเดอร์ให้
+- `ExportResult.Project.SharedWith` ว่างเสมอ เพราะ export ไม่มี scope
+- ข้อความ error ใน Core อ้างชื่อ flag ของ CLI (`--flat`, `--force`) ตอนทำ Desktop อาจต้องปรับถ้อยคำ
+- CLI: คำเตือนไป stderr เสมอทั้งสองแบบ stdout มีแค่ JSON (`-o -`) หรือบรรทัดสรุป (`-o <file>`) ซึ่งเขียนลง writer ตรงๆ ไม่ผ่าน Spectre เพื่อไม่ให้ตัดบรรทัด
+
 ## Consequences
 - `IImportService` มี 2 method ใหม่ Cli และ Desktop ที่ fake service ต้องเพิ่ม stub
 - Overview, spec, readme และ `AGENTS.md` ต้องเพิ่ม export
