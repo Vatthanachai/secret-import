@@ -15,7 +15,7 @@ A tool that imports a JSON file into a .NET project's `dotnet user-secrets` stor
 - `obsidian/03-Features/Implementation-Plan.md` — phased plan (Phase 0–8); follow it in order and tick the checkboxes as you finish items
 - `obsidian/02-Decisions/ADR-*.md` — accepted decisions; don't contradict these without a new ADR
 
-The stack is `net10.0` (SDK pinned via `global.json`), Avalonia 12.1 + CommunityToolkit.Mvvm, System.CommandLine 2.0 + Spectre.Console, and SolutionPersistence. Package versions are pinned centrally in `Directory.Packages.props` (ADR-0007, ADR-0011). The CLI contract and exit codes are in ADR-0008, Unix file permissions in ADR-0009, and distribution (GitHub Releases only, no nuget.org) in ADR-0010.
+The stack is `net10.0` (SDK pinned via `global.json`), Avalonia 12.1 + CommunityToolkit.Mvvm, System.CommandLine 2.0 + Spectre.Console, and SolutionPersistence. Package versions are pinned centrally in `Directory.Packages.props` (ADR-0007, ADR-0011). The CLI contract and exit codes are in ADR-0008 (plus `--json` and `--exit-code`, exit code 4, in ADR-0014), Unix file permissions in ADR-0009, and distribution (GitHub Releases only, no nuget.org) in ADR-0010.
 
 ## Build and test commands
 
