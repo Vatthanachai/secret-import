@@ -13,11 +13,34 @@ Import values from a JSON file into a .NET project's `dotnet user-secrets` store
 
 ```
 secret-import --project <path> --file <json|-> [--mode overwrite|skip|replace]
-              [--section <path>] [--dry-run] [--yes] [--init] [--show-values]
+              [--section <path>] [--scope <path>] [--dry-run [--exit-code]] [--yes] [--init]
+              [--show-values] [--json]
 ```
 
 - `--file -` reads JSON from stdin and needs `--yes` unless you also pass `--dry-run`.
-- Exit codes: `0` success, `1` invalid input, `2` cancelled or confirmation required, `3` environment or I/O error.
+- `--exit-code` works only with `--dry-run`: it exits `4` when there are changes to import and `0` when there are none, so CI can check that secrets are in sync.
+- `--json` prints one JSON object to stdout for every outcome and nothing to stderr. It never prompts, so pass `--yes` (and `--init`) to import. Secret values appear only with `--show-values`.
+- Exit codes: `0` success, `1` invalid input, `2` cancelled or confirmation required, `3` environment or I/O error, `4` `--dry-run --exit-code` found changes.
+
+```console
+$ secret-import --project src/Api --file secrets.json --dry-run --json
+{
+  "exitCode": 0,
+  "status": "dryRun",
+  "project": { "name": "Api", "path": "/repo/src/Api/Api.csproj" },
+  "userSecretsId": "abc-123",
+  "secretsPath": "/home/me/.microsoft/usersecrets/abc-123/secrets.json",
+  "mode": "overwrite",
+  "section": null,
+  "scope": "/repo/src/Api",
+  "initialized": false,
+  "summary": { "added": 1, "changed": 0, "removed": 0, "unchanged": 2, "skipped": 0 },
+  "changes": [ { "key": "Db:Conn", "kind": "added" }, ... ],
+  "warnings": [],
+  "backupPath": null,
+  "error": null
+}
+```
 
 ## Install
 All downloads are on the project's GitHub Releases page. Nothing is published to nuget.org. Each release also includes a `SHA256SUMS.txt` file for checking downloads.

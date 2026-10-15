@@ -10,6 +10,7 @@ namespace SecretImport.Cli;
 /// <summary>
 /// Testable entry point of the <c>secret-import</c> tool (ADR-0008). <c>Program.cs</c> only delegates here via <see cref="CliHost"/>.
 /// Normal output goes to <paramref name="console"/> (stdout); errors, including parse errors, go to <paramref name="errorConsole"/> (stderr).
+/// With <c>--json</c> everything after parsing is one JSON report on stdout (ADR-0014).
 /// </summary>
 /// <param name="scopeResolver">Picks the shared-id scope when <c>--scope</c> is omitted; defaults to Core's resolver over the real file system.</param>
 public sealed class CliApp(
@@ -51,13 +52,27 @@ public sealed class CliApp(
         HelpName = "path",
     };
 
-    private readonly Option<bool> dryRunOption = new("--dry-run") { Description = "Show the diff without writing anything (always exits 0)." };
+    private readonly Option<bool> dryRunOption = new("--dry-run")
+    {
+        Description = "Show the diff without writing anything. Exits 0, or 4 when there are changes and --exit-code is set.",
+    };
+
+    private readonly Option<bool> exitCodeOption = new("--exit-code")
+    {
+        Description = "With --dry-run, exit 4 when there are changes to import and 0 when there are none. Only valid with --dry-run.",
+    };
 
     private readonly Option<bool> yesOption = new("--yes", "-y") { Description = "Import without asking for confirmation." };
 
     private readonly Option<bool> initOption = new("--init") { Description = "Run 'dotnet user-secrets init' without asking if the project has no UserSecretsId." };
 
     private readonly Option<bool> showValuesOption = new("--show-values") { Description = "Show secret values in the diff instead of masking them." };
+
+    private readonly Option<bool> jsonOption = new("--json")
+    {
+        Description = "Print one JSON object with the result to stdout instead of tables. Never prompts, so pass --yes (and --init) to import. "
+            + "Values are included only with --show-values.",
+    };
 
     public async Task<int> RunAsync(string[] args, CancellationToken cancellationToken = default)
     {
@@ -83,9 +98,11 @@ public sealed class CliApp(
             sectionOption,
             scopeOption,
             dryRunOption,
+            exitCodeOption,
             yesOption,
             initOption,
             showValuesOption,
+            jsonOption,
         };
         root.SetAction(InvokeImportAsync);
         return root;
@@ -102,7 +119,9 @@ public sealed class CliApp(
             parseResult.GetValue(dryRunOption),
             parseResult.GetValue(yesOption),
             parseResult.GetValue(initOption),
-            parseResult.GetValue(showValuesOption));
+            parseResult.GetValue(showValuesOption),
+            parseResult.GetValue(exitCodeOption),
+            parseResult.GetValue(jsonOption));
         return new ImportFlow(console, errorConsole, stdin, importService, scopeResolver).RunAsync(options, cancellationToken);
     }
 }

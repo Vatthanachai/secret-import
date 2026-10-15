@@ -20,7 +20,7 @@ public sealed class CliAppTests : IDisposable
         Assert.Contains("secret-import", cli.Out.Output);
         Assert.Contains("Usage:", cli.Out.Output);
         Assert.Contains("user-secrets", cli.Out.Output);
-        foreach (string option in new[] { "--project", "--file", "--mode", "--section", "--scope", "--dry-run", "--yes", "--init", "--show-values" })
+        foreach (string option in new[] { "--project", "--file", "--mode", "--section", "--scope", "--dry-run", "--yes", "--init", "--show-values", "--exit-code", "--json" })
         {
             Assert.Contains(option, cli.Out.Output);
         }
