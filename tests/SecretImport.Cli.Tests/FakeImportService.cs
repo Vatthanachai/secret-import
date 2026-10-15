@@ -21,6 +21,16 @@ internal sealed class FakeImportService : IImportService
 
     public ImportResult ApplyResult { get; set; } = new(1, 2, 3, "/secrets/secrets.json", "/secrets/secrets.json.bak");
 
+    public List<ExportRequest> ExportRequests { get; } = [];
+
+    public List<WriteExportCall> WriteExportCalls { get; } = [];
+
+    public Exception? ExportException { get; set; }
+
+    public Exception? WriteExportException { get; set; }
+
+    public ExportResult ExportResult { get; set; } = TestData.Export();
+
     /// <summary>Analyses returned by successive <see cref="AnalyzeAsync"/> calls; the last one repeats.</summary>
     public FakeImportService Returns(params ImportAnalysis[] results)
     {
@@ -63,11 +73,15 @@ internal sealed class FakeImportService : IImportService
 
     public Task<ExportResult> ExportAsync(ExportRequest request, CancellationToken ct = default)
     {
-        throw new NotSupportedException("Export is not wired into the CLI yet.");
+        ExportRequests.Add(request);
+        return ExportException is null ? Task.FromResult(ExportResult) : Task.FromException<ExportResult>(ExportException);
     }
 
     public Task WriteExportAsync(string path, string json, bool overwrite, CancellationToken ct = default)
     {
-        throw new NotSupportedException("Export is not wired into the CLI yet.");
+        WriteExportCalls.Add(new WriteExportCall(path, json, overwrite));
+        return WriteExportException is null ? Task.CompletedTask : Task.FromException(WriteExportException);
     }
 }
+
+internal sealed record WriteExportCall(string Path, string Json, bool Overwrite);
