@@ -1,0 +1,248 @@
+using SecretImport.Core;
+
+namespace SecretImport.Cli.Tests;
+
+/// <summary>Argument parsing and the help / version / parse-error paths of <see cref="CliApp"/> (ADR-0008).</summary>
+public sealed class CliAppTests : IDisposable
+{
+    private readonly CliHarness cli = new();
+
+    public void Dispose() => cli.Dispose();
+
+    [Theory]
+    [InlineData("--help")]
+    [InlineData("-h")]
+    public async Task Help_PrintsUsageAndEveryOptionToStdout_AndReturnsZero(string flag)
+    {
+        int exitCode = await cli.RunAsync(flag);
+
+        Assert.Equal(ExitCodes.Success, exitCode);
+        Assert.Contains("secret-import", cli.Out.Output);
+        Assert.Contains("Usage:", cli.Out.Output);
+        Assert.Contains("user-secrets", cli.Out.Output);
+        foreach (string option in new[] { "--project", "--file", "--mode", "--section", "--scope", "--dry-run", "--yes", "--init", "--show-values" })
+        {
+            Assert.Contains(option, cli.Out.Output);
+        }
+
+        Assert.Contains("overwrite|skip|replace", cli.Out.Output);
+        Assert.Empty(cli.Err.Output);
+    }
+
+    [Fact]
+    public async Task Version_PrintsTheVersion_AndReturnsZero()
+    {
+        int exitCode = await cli.RunAsync("--version");
+
+        Assert.Equal(ExitCodes.Success, exitCode);
+        Assert.Matches(@"^\d+\.\d+\.\d+", cli.Out.Output.Trim());
+    }
+
+    [Fact]
+    public async Task UnknownOption_ReportsTheErrorOnStderr_AndReturnsOne()
+    {
+        int exitCode = await cli.RunImportAsync("--no-such-option");
+
+        Assert.Equal(ExitCodes.InvalidInput, exitCode);
+        Assert.Contains("--no-such-option", cli.Err.Output);
+        Assert.DoesNotContain("--no-such-option", cli.Out.Output);
+        Assert.Empty(cli.Service.AnalyzeRequests);
+    }
+
+    [Theory]
+    [InlineData("--file", "x.json")]
+    [InlineData("--project", "App.csproj")]
+    public async Task MissingRequiredOption_ReturnsOne_WithoutCallingCore(string option, string value)
+    {
+        int exitCode = await cli.RunAsync(option, value);
+
+        Assert.Equal(ExitCodes.InvalidInput, exitCode);
+        Assert.NotEmpty(cli.Err.Output);
+        Assert.Empty(cli.Service.AnalyzeRequests);
+    }
+
+    [Fact]
+    public async Task InvalidMode_ReturnsOne()
+    {
+        int exitCode = await cli.RunImportAsync("--mode", "merge");
+
+        Assert.Equal(ExitCodes.InvalidInput, exitCode);
+        Assert.Contains("merge", cli.Err.Output);
+        Assert.Empty(cli.Service.AnalyzeRequests);
+    }
+
+    [Theory]
+    [InlineData("overwrite", ImportMode.Overwrite)]
+    [InlineData("skip", ImportMode.Skip)]
+    [InlineData("replace", ImportMode.Replace)]
+    [InlineData("Replace", ImportMode.Replace)]
+    public async Task Mode_IsParsedCaseInsensitively(string value, ImportMode expected)
+    {
+        cli.Service.Returns(TestData.Initialized());
+
+        await cli.RunImportAsync("--mode", value, "--dry-run");
+
+        Assert.Equal(expected, Assert.Single(cli.Service.AnalyzeRequests).Mode);
+    }
+
+    [Fact]
+    public async Task Request_CarriesTheProjectFileContentSectionAndDefaultMode()
+    {
+        cli.Service.Returns(TestData.Initialized());
+
+        await cli.RunImportAsync("--section", "App:Auth", "--dry-run");
+
+        ImportRequest request = Assert.Single(cli.Service.AnalyzeRequests);
+        Assert.Equal(TestData.Project.Path, request.ProjectPath);
+        Assert.Equal(Path.GetFullPath(cli.JsonPath), request.Json.DisplayName);
+        Assert.Equal("""{ "Api": { "Key": "x" } }""", request.Json.Content);
+        Assert.Equal("App:Auth", request.Section);
+        Assert.Equal(ImportMode.Overwrite, request.Mode);
+    }
+
+    [Fact]
+    public async Task Scope_IsPassedToCoreAsGiven()
+    {
+        cli.Service.Returns(TestData.Initialized());
+
+        await cli.RunImportAsync("--scope", "some/All.slnx", "--dry-run");
+
+        Assert.Equal("some/All.slnx", Assert.Single(cli.Service.AnalyzeRequests).ScopePath);
+    }
+
+    [Fact]
+    public async Task WithoutScope_AndNoSolutionToFind_NoScopeIsSent()
+    {
+        cli.Service.Returns(TestData.Initialized());
+
+        await cli.RunImportAsync("--dry-run");
+
+        Assert.Null(Assert.Single(cli.Service.AnalyzeRequests).ScopePath);
+    }
+
+    [Fact]
+    public async Task WithoutScope_AProjectFileNextToOneSolution_UsesThatSolution()
+    {
+        string dir = Directory.CreateTempSubdirectory("secret-import-cli-scope-").FullName;
+        try
+        {
+            string project = Path.Combine(dir, "App.csproj");
+            string solution = Path.Combine(dir, "App.slnx");
+            File.WriteAllText(project, "<Project />");
+            File.WriteAllText(solution, "<Solution />");
+            cli.Service.Returns(TestData.Initialized());
+
+            await cli.RunAsync("--project", project, "--file", cli.JsonPath, "--dry-run");
+
+            Assert.Equal(solution, Assert.Single(cli.Service.AnalyzeRequests).ScopePath);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task WithoutScope_AProjectFileNextToASlnAndASlnx_UsesTheSlnx()
+    {
+        string dir = Directory.CreateTempSubdirectory("secret-import-cli-scope-").FullName;
+        try
+        {
+            string project = Path.Combine(dir, "App.csproj");
+            string slnx = Path.Combine(dir, "App.slnx");
+            File.WriteAllText(project, "<Project />");
+            File.WriteAllText(Path.Combine(dir, "App.sln"), "");
+            File.WriteAllText(slnx, "<Solution />");
+            cli.Service.Returns(TestData.Initialized());
+
+            await cli.RunAsync("--project", project, "--file", cli.JsonPath, "--dry-run");
+
+            Assert.Equal(slnx, Assert.Single(cli.Service.AnalyzeRequests).ScopePath);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task WithoutScope_TheGivenResolverPicksTheScope()
+    {
+        string dir = Directory.CreateTempSubdirectory("secret-import-cli-scope-").FullName;
+        try
+        {
+            string project = Path.Combine(dir, "App.csproj");
+            File.WriteAllText(project, "<Project />");
+            string listed = Path.Combine(dir, "Listed.slnx");
+            cli.ScopeResolver = new SolutionScopeResolver(d => d == dir ? [listed] : []);
+            cli.Service.Returns(TestData.Initialized());
+
+            await cli.RunAsync("--project", project, "--file", cli.JsonPath, "--dry-run");
+
+            Assert.Equal(listed, Assert.Single(cli.Service.AnalyzeRequests).ScopePath);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task Scope_WinsOverTheResolversGuess()
+    {
+        cli.ScopeResolver = new SolutionScopeResolver(static _ => throw new InvalidOperationException("must not list"));
+        cli.Service.Returns(TestData.Initialized());
+
+        await cli.RunImportAsync("--scope", "given/All.sln", "--dry-run");
+
+        Assert.Equal("given/All.sln", Assert.Single(cli.Service.AnalyzeRequests).ScopePath);
+    }
+
+    [Fact]
+    public async Task WithoutScope_AFolderProject_IsAlsoTheScope()
+    {
+        string dir = Directory.CreateTempSubdirectory("secret-import-cli-scope-").FullName;
+        try
+        {
+            cli.Service.Returns(TestData.Initialized());
+
+            await cli.RunAsync("--project", dir, "--file", cli.JsonPath, "--dry-run");
+
+            ImportRequest request = Assert.Single(cli.Service.AnalyzeRequests);
+            Assert.Equal(dir, request.ProjectPath);
+            Assert.Equal(dir, request.ScopePath);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task ShortAliases_AreAccepted()
+    {
+        cli.Service.Returns(TestData.Initialized(TestData.SomeChanges()));
+
+        int exitCode = await cli.RunAsync("-p", TestData.Project.Path, "-f", cli.JsonPath, "-m", "skip", "-s", "Db", "-y");
+
+        Assert.Equal(ExitCodes.Success, exitCode);
+        ImportRequest request = Assert.Single(cli.Service.AnalyzeRequests);
+        Assert.Equal(ImportMode.Skip, request.Mode);
+        Assert.Equal("Db", request.Section);
+        Assert.Single(cli.Service.ApplyCalls);
+    }
+
+    [Fact]
+    public async Task FileDash_ReadsTheJsonFromStdin()
+    {
+        cli.Stdin = new StringReader("""{ "FromStdin": "1" }""");
+        cli.Service.Returns(TestData.Initialized());
+
+        int exitCode = await cli.RunAsync("--project", TestData.Project.Path, "--file", "-", "--dry-run");
+
+        Assert.Equal(ExitCodes.Success, exitCode);
+        ImportRequest request = Assert.Single(cli.Service.AnalyzeRequests);
+        Assert.Equal(ImportFlow.StdinDisplayName, request.Json.DisplayName);
+        Assert.Equal("""{ "FromStdin": "1" }""", request.Json.Content);
+    }
+}

@@ -1,0 +1,67 @@
+# .obsidianignore — paths excluded from Obsidian/vault indexing (gitignore syntax)
+# Notes live in ./obsidian; everything below is source, build output, or tooling noise.
+
+# --- .NET build output ---
+bin/
+obj/
+artifacts/
+publish/
+TestResults/
+*.binlog
+*.nupkg
+*.snupkg
+
+# --- IDE / tooling ---
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.DotSettings.user
+.git/
+.github/
+.claude/
+graphify-out/
+
+# --- Source & project files (Core / CLI / Avalonia) ---
+src/
+tests/
+*.cs
+*.axaml
+*.csproj
+*.sln
+*.slnx
+Directory.Build.props
+Directory.Build.targets
+Directory.Packages.props
+global.json
+*.g.cs
+*.g.i.cs
+**/Assets/
+
+# --- Desktop packaging (Windows / macOS / Linux) ---
+*.msix
+*.exe
+*.pfx
+*.app/
+*.dmg
+*.pkg
+*.dSYM/
+*.p12
+*.AppImage
+*.deb
+*.rpm
+*.flatpak
+
+# --- Secrets / local config ---
+.env
+.env.*
+appsettings.*.local.json
+secrets.json
+secrets.json.bak
+*.secrets.json
+
+# --- Vault internals ---
+obsidian/.obsidian/workspace*.json
+obsidian/.obsidian/cache
+obsidian/.trash/

@@ -1,0 +1,190 @@
+# Tag-triggered release (ADR-0010). Tags v* come from `git flow release finish <ver>` (ADR-0012).
+# Everything goes to GitHub Releases only. Nothing is ever pushed to nuget.org.
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  version:
+    name: Resolve version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      bundle-version: ${{ steps.v.outputs.bundle_version }}
+      prerelease: ${{ steps.v.outputs.prerelease }}
+    steps:
+      - id: v
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Tag '$GITHUB_REF_NAME' is not v<major>.<minor>.<patch>[-prerelease]"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "bundle_version=${version%%-*}" >> "$GITHUB_OUTPUT"
+          if [[ "$version" == *-* ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  desktop:
+    name: Desktop (${{ matrix.rid }})
+    needs: version
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { rid: win-x64,     os: windows-latest }
+          - { rid: win-arm64,   os: windows-latest }
+          # Built on macOS so the SDK ad-hoc signs the apphost (required to run on Apple Silicon).
+          - { rid: osx-arm64,   os: macos-latest }
+          - { rid: osx-x64,     os: macos-latest }
+          - { rid: linux-x64,   os: ubuntu-latest }
+          - { rid: linux-arm64, os: ubuntu-latest }
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      BUNDLE_VERSION: ${{ needs.version.outputs.bundle-version }}
+      RID: ${{ matrix.rid }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Publish
+        shell: bash
+        # IncludeNativeLibrariesForSelfExtract bundles SkiaSharp/HarfBuzz/Avalonia native libs into the single file.
+        # DebugType=none keeps managed .pdb files out of the download.
+        run: >
+          dotnet publish src/SecretImport.Desktop/SecretImport.Desktop.csproj
+          -c Release -r "$RID" --self-contained
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:DebugType=none
+          -p:Version="$VERSION"
+          -o "publish/$RID"
+
+      - name: Remove native debug symbols
+        shell: bash
+        run: find "publish/$RID" -type f \( -name '*.pdb' -o -name '*.dbg' \) -delete
+
+      - name: Package (Windows zip)
+        if: startsWith(matrix.rid, 'win-')
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts | Out-Null
+          $name = "SecretImport-$env:VERSION-$env:RID"
+          New-Item -ItemType Directory -Force "stage/$name" | Out-Null
+          Copy-Item "publish/$env:RID/*" "stage/$name/" -Recurse
+          Compress-Archive -Path "stage/$name" -DestinationPath "artifacts/$name.zip"
+
+      - name: Package (macOS .app tar.gz)
+        if: startsWith(matrix.rid, 'osx-')
+        shell: bash
+        run: |
+          set -euo pipefail
+          app="stage/SecretImport.app"
+          mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources" artifacts
+          cp -R "publish/$RID/." "$app/Contents/MacOS/"
+          chmod +x "$app/Contents/MacOS/SecretImport.Desktop"
+          sed "s/__BUNDLE_VERSION__/$BUNDLE_VERSION/g" build/macos/Info.plist > "$app/Contents/Info.plist"
+          plutil -lint "$app/Contents/Info.plist"
+          if [ -f build/macos/AppIcon.icns ]; then
+            cp build/macos/AppIcon.icns "$app/Contents/Resources/AppIcon.icns"
+          fi
+          tar -C stage -czf "artifacts/SecretImport-$VERSION-$RID.tar.gz" SecretImport.app
+
+      - name: Package (Linux tar.gz)
+        if: startsWith(matrix.rid, 'linux-')
+        shell: bash
+        run: |
+          set -euo pipefail
+          name="SecretImport-$VERSION-$RID"
+          mkdir -p "stage/$name" artifacts
+          cp -R "publish/$RID/." "stage/$name/"
+          chmod +x "stage/$name/SecretImport.Desktop"
+          tar -C stage -czf "artifacts/$name.tar.gz" "$name"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.rid }}
+          path: artifacts/*
+          if-no-files-found: error
+
+  cli:
+    name: CLI (.nupkg)
+    needs: version
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Pack
+        shell: bash
+        # PackAsTool/ToolCommandName/RollForward are declared in SecretImport.Cli.csproj.
+        run: >
+          dotnet pack src/SecretImport.Cli/SecretImport.Cli.csproj
+          -c Release
+          -p:Version="$VERSION"
+          -o artifacts
+
+      - name: Smoke test the tool package
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet tool install SecretImport.Cli --tool-path "$RUNNER_TEMP/tool" --add-source artifacts --version "$VERSION"
+          "$RUNNER_TEMP/tool/secret-import" --help
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cli-nupkg
+          path: artifacts/*.nupkg
+          if-no-files-found: error
+
+  release:
+    name: GitHub Release
+    needs: [version, desktop, cli]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Checksums
+        shell: bash
+        run: |
+          cd dist
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: SecretImport ${{ needs.version.outputs.version }}
+          tag_name: ${{ github.ref_name }}
+          prerelease: ${{ needs.version.outputs.prerelease == 'true' }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: dist/*
