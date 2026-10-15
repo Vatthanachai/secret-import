@@ -47,7 +47,6 @@ tags: [feature]
 - เลือก merge ทีละ key
 - export secrets → JSON
 - เก็บ backup หลายเวอร์ชัน
-- CLI `--json` และ `--exit-code`
 - sign/notarize, installer และ nuget.org
 
 Plan: [[Implementation-Plan]]

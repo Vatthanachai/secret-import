@@ -8,7 +8,7 @@ tags: [adr]
 ## Options
 ```
 secret-import --project <path> --file <json|-> [--mode overwrite|skip|replace]
-              [--section <path>] [--scope <path>] [--dry-run] [--yes] [--init] [--show-values]
+              [--section <path>] [--scope <path>] [--dry-run [--exit-code]] [--yes] [--init] [--show-values] [--json]
 ```
 `--scope` ใช้ตรวจ id ร่วม ([[ADR-0013-scope-and-discovery-warnings]]) ถ้าไม่ระบุจะเลือก scope ให้อัตโนมัติ
 
@@ -25,7 +25,7 @@ secret-import --project <path> --file <json|-> [--mode overwrite|skip|replace]
 | `1` | input ผิด | parse JSON ไม่ได้, key ซ้ำ, ไม่เจอ section, เจอหลายโปรเจค, option ผิด |
 | `2` | ผู้ใช้ยกเลิก หรือต้อง confirm แต่ไม่มี `--yes` | ตอบ "n", รันแบบ non-interactive หรืออ่านจาก stdin โดยไม่มี `--yes` หรือ `--init` |
 | `3` | สภาพแวดล้อมหรือ I/O ผิดพลาด | ไม่มี SDK ตอนที่ต้อง init, เขียนไฟล์ไม่ได้, `secrets.json` เปลี่ยนไประหว่าง Analyze กับ Apply |
+| `4` | `--dry-run --exit-code` เจอ diff | ดู [[ADR-0014-cli-json-and-exit-code]] |
 
-## Backlog
-- `--json` สำหรับให้ script อ่านผลลัพธ์แบบ machine-readable
-- `--exit-code` สำหรับให้ `--dry-run` คืน code แยกเมื่อมี diff (ใช้ใน CI)
+## `--json` และ `--exit-code`
+ย้ายออกจาก backlog แล้ว ดู [[ADR-0014-cli-json-and-exit-code]]
