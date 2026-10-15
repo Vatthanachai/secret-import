@@ -71,7 +71,7 @@ Spec: [[Import-JSON-to-User-Secrets]] · Architecture: [[01-Architecture/Overvie
 - [ ] ทดสอบด้วยมือบน Windows, macOS และ Linux (Windows: เปิดแอปได้และ render ทุกขั้นผ่าน headless แล้ว ส่วน macOS/Linux ยังไม่ได้ทดสอบ)
 
 ## Phase 8 — Packaging & CI
-- [x] `ci.yml` (เขียนเสร็จ YAML ผ่าน ยังไม่เคยรันบน GitHub เพราะยังไม่มี remote): build และ test บน `windows-latest`, `macos-latest`, `ubuntu-latest`
+- [x] `ci.yml` (รันบน GitHub ผ่านทั้ง 3 OS แล้ว as of 2026-10-15): build และ test บน `windows-latest`, `macos-latest`, `ubuntu-latest`
 - [x] `release.yml` (ทำงานเมื่อ push tag `v*`) ตาม [[ADR-0010-distribution]]
   - GUI แบบ self-contained single-file: `win-x64`, `win-arm64`, `osx-arm64`, `osx-x64`, `linux-x64`, `linux-arm64`
   - macOS `.app` bundle แบบไม่ sign
@@ -79,17 +79,19 @@ Spec: [[Import-JSON-to-User-Secrets]] · Architecture: [[01-Architecture/Overvie
   - แนบทุกไฟล์ไว้ใน GitHub Release (ไม่ขึ้น nuget.org)
 - [x] readme: วิธีติดตั้ง CLI ด้วย `--add-source` และวิธีเปิดแอปผ่าน Gatekeeper / SmartScreen
 
-## สถานะ (as of 2026-10-14) — พักงานไว้ที่นี่
-ทุก phase และ bugfix ทั้งสอง (`contract-scope-warnings`, `shared-scope-resolver`) merge เข้า `develop` แล้ว (`af41d14`) และทุกตัวผ่าน QA gate
+## สถานะ (as of 2026-10-15) — กำลังออก release 0.1.0
+ทุก phase และ bugfix ทั้งสอง (`contract-scope-warnings`, `shared-scope-resolver`) merge เข้า `develop` แล้ว และทุกตัวผ่าน QA gate
 - Core.Tests 216 ผ่าน + 5 ข้าม (เฉพาะ Unix ซึ่งผ่านบน WSL แล้ว) coverage 97.72% / 96.17%
 - Cli.Tests 77 ตัว 100% / 98.79%
 - Desktop.Tests 85 ตัว 100% / 100%
 - CLI ทดสอบ end-to-end กับโปรเจคจริงแล้ว: dry-run, ปฏิเสธเมื่อรัน non-interactive, `--init --yes`, replace ผ่าน stdin + `.bak`, คำเตือน id ร่วมทั้งตอนหา solution อัตโนมัติและตอนใส่ `--scope`, เลือก `.slnx` ก่อน `.sln`
 - แอป Desktop เปิดได้บน Windows
+- push `develop` และ `main` ขึ้น GitHub แล้ว และ CI ผ่านทั้ง Windows, macOS และ Linux
 - ไม่มี open question เหลือใน spec
 
-**ขั้นต่อไป (ยังไม่ได้ทำ ต้องให้ผู้ใช้สั่ง):**
-1. เพิ่ม remote แล้ว push `develop` และ `main` เพื่อให้ CI รันจริงบน 3 OS
-2. ทดสอบด้วยมือบน macOS/Linux และการคลิกเลือกไฟล์จริงใน Desktop
-3. `git flow release start 0.1.0` → finish → push tag `v0.1.0` → ให้ `release.yml` ทำงาน
-4. Backlog: ดู [[Import-JSON-to-User-Secrets#Backlog (หลังเวอร์ชันแรก)]]
+**ขั้นตอน release 0.1.0:**
+1. [x] `git flow release start 0.1.0`
+2. [ ] push `release/0.1.0` และ tag `v0.1.0-rc.1` เพื่อทดสอบ `release.yml` ครั้งแรก (ได้ GitHub prerelease)
+3. [ ] ทดสอบด้วยมือบน macOS/Linux ด้วย binary จาก prerelease และการคลิกเลือกไฟล์จริงใน Desktop ถ้าเจอบั๊กให้แก้บน release branch แล้วออก `rc.N` ถัดไป
+4. [ ] `git flow release finish 0.1.0 -T v0.1.0` (tag ต้องมี `v` นำหน้า เพราะ `release.yml` จับเฉพาะ `v*`) → push `main`, `develop` และ tag
+5. Backlog: ดู [[Import-JSON-to-User-Secrets#Backlog (หลังเวอร์ชันแรก)]]

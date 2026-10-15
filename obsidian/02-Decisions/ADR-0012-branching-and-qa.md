@@ -19,7 +19,7 @@ repo นี้ init git flow ไว้แล้วด้วย **git-flow-next 2
 | เริ่ม feature | `git flow feature start <name>` |
 | ปิด feature (หลังผ่าน QA) | `git flow feature finish <name> --no-ff` |
 | แก้ bug บน develop | `git flow bugfix start/finish <name>` |
-| เตรียม release | `git flow release start <ver>` → `git flow release finish <ver>` (tag `v<ver>` จะเป็นตัวสั่งให้ `release.yml` ทำงาน) |
+| เตรียม release | `git flow release start <ver>` → `git flow release finish <ver> -T v<ver>` (tag `v<ver>` จะเป็นตัวสั่งให้ `release.yml` ทำงาน) |
 | แก้ด่วนบน main | `git flow hotfix start/finish <ver>` |
 
 **Worktree สำหรับ agent ที่ทำงานพร้อมกัน**
